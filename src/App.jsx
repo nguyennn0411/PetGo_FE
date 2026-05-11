@@ -1,0 +1,71 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+
+import HomePage from './pages/HomePage';
+import ProviderListPage from './pages/ProviderListPage';
+import SearchFilterPage from './pages/SearchFilterPage';
+import CompareProvidersPage from './pages/CompareProvidersPage';
+import ProviderDetailPage from './pages/ProviderDetailPage';
+import NearbyProvidersPage from './pages/NearbyProvidersPage';
+import FavoritesPage from './pages/FavoritesPage';
+
+import BookingPage from './pages/BookingPage';
+import PaymentPage from './pages/PaymentPage';
+import BookingSuccessPage from './pages/BookingSuccessPage';
+import InvoicePage from './pages/InvoicePage';
+
+import MyBookingsPage from './pages/MyBookingsPage';
+import BookingDetailPage from './pages/BookingDetailPage';
+import RescheduleBookingPage from './pages/RescheduleBookingPage';
+import CancelBookingPage from './pages/CancelBookingPage';
+import ReviewPage from './pages/ReviewPage';
+
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ProfilePage from './pages/ProfilePage';
+import AddPetPage from './pages/AddPetPage';
+
+import MembershipPage from './pages/MembershipPage';
+import MembershipPaymentPage from './pages/MembershipPaymentPage';
+import HelpCenterPage from './pages/HelpCenterPage';
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path='/' element={<HomePage />} />
+
+        <Route path='/providers' element={<ProviderListPage />} />
+        <Route path='/providers/:id' element={<ProviderDetailPage />} />
+        <Route path='/search' element={<SearchFilterPage />} />
+        <Route path='/compare' element={<CompareProvidersPage />} />
+        <Route path='/nearby' element={<NearbyProvidersPage />} />
+        <Route path='/favorites' element={<FavoritesPage />} />
+
+        <Route path='/booking' element={<BookingPage />} />
+        <Route path='/payment' element={<PaymentPage />} />
+        <Route path='/booking-success' element={<BookingSuccessPage />} />
+        <Route path='/invoice' element={<InvoicePage />} />
+
+        <Route path='/my-bookings' element={<MyBookingsPage />} />
+        <Route path='/bookings/:id' element={<BookingDetailPage />} />
+        <Route path='/reschedule/:id' element={<RescheduleBookingPage />} />
+        <Route path='/cancel-booking/:id' element={<CancelBookingPage />} />
+        <Route path='/reviews/create/:bookingId' element={<ReviewPage />} />
+
+        <Route path='/login' element={<LoginPage />} />
+        <Route path='/register' element={<RegisterPage />} />
+        <Route path='/profile' element={<ProfilePage />} />
+        <Route path='/add-pet' element={<AddPetPage />} />
+
+        <Route path='/membership' element={<MembershipPage />} />
+        <Route path='/membership-payment' element={<MembershipPaymentPage />} />
+
+        <Route path='/help-center' element={<HelpCenterPage />} />
+
+        <Route path='/home' element={<Navigate to='/' replace />} />
+        <Route path='/services' element={<Navigate to='/search' replace />} />
+        <Route path='*' element={<Navigate to='/' replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
