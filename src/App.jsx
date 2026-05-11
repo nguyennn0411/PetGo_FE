@@ -21,11 +21,23 @@ import ReviewPage from './pages/ReviewPage';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import OtpVerificationPage from './pages/OtpVerificationPage';
 import ProfilePage from './pages/ProfilePage';
 import AddPetPage from './pages/AddPetPage';
 
 import MembershipPage from './pages/MembershipPage';
 import MembershipPaymentPage from './pages/MembershipPaymentPage';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminPartners from './pages/admin/AdminPartners';
+import AdminBookings from './pages/admin/AdminBookings';
+import AdminVouchers from './pages/admin/AdminVouchers';
+import AdminServices from './pages/admin/AdminServices';
+import AdminReviews from './pages/admin/AdminReviews';
+import AdminContent from './pages/admin/AdminContent';
+import AdminNotifications from './pages/admin/AdminNotifications';
+import AdminLogs from './pages/admin/AdminLogs';
+import AdminReports from './pages/admin/AdminReports';
 import HelpCenterPage from './pages/HelpCenterPage';
 
 export default function App() {
@@ -54,11 +66,25 @@ export default function App() {
 
         <Route path='/login' element={<LoginPage />} />
         <Route path='/register' element={<RegisterPage />} />
+        <Route path='/verify-otp' element={<OtpVerificationPage />} />
         <Route path='/profile' element={<ProfilePage />} />
         <Route path='/add-pet' element={<AddPetPage />} />
 
         <Route path='/membership' element={<MembershipPage />} />
         <Route path='/membership-payment' element={<MembershipPaymentPage />} />
+
+        {/* Admin Routes */}
+        <Route path='/admin/dashboard' element={<AdminDashboard />} />
+        <Route path='/admin/users' element={<AdminUsers />} />
+        <Route path='/admin/partners' element={<AdminPartners />} />
+        <Route path='/admin/bookings' element={<AdminBookings />} />
+        <Route path='/admin/vouchers' element={<AdminVouchers />} />
+        <Route path='/admin/services' element={<AdminServices />} />
+        <Route path='/admin/reviews' element={<AdminReviews />} />
+        <Route path='/admin/content' element={<AdminContent />} />
+        <Route path='/admin/notifications' element={<AdminNotifications />} />
+        <Route path='/admin/logs' element={<AdminLogs />} />
+        <Route path='/admin/reports' element={<AdminReports />} />
 
         <Route path='/help-center' element={<HelpCenterPage />} />
 
