@@ -10,6 +10,11 @@ export const registerRequest = async (payload) => {
   return response.data;
 };
 
+export const verifyOtpRequest = async (payload) => {
+  const response = await api.post('/auth/verify-otp', payload);
+  return response.data;
+};
+
 export const getMyAccount = async () => {
   const response = await api.get('/auth/me');
   return response.data?.result?.user || response.data?.result || response.data;

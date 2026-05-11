@@ -42,8 +42,8 @@ const RegisterPage = () => {
         fullName: name,
         phoneNumber: phone,
       });
-      setSuccess('Đăng ký thành công. Đang chuyển sang trang đăng nhập...');
-      setTimeout(() => navigate('/login'), 700);
+      setSuccess('Đăng ký thành công! Đang chuyển đến trang xác thực OTP...');
+      setTimeout(() => navigate(`/verify-otp?email=${encodeURIComponent(email)}`), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.');
     } finally {
