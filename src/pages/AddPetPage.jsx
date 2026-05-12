@@ -6,7 +6,6 @@ import {
   Camera,
   CheckCircle2,
   ChevronDown,
-  Info,
   Loader2,
   PawPrint,
   PencilLine,
@@ -86,7 +85,7 @@ const buildPayload = (form) => ({
   weightKg: form.weightKg === '' ? null : Number(form.weightKg),
   color: form.color.trim() || null,
   size: form.size || 'UNKNOWN',
-  avatarUrl: form.avatarUrl.trim() || null,
+  avatarUrl: form.avatarUrl?.trim() || null,
   healthNotes: form.healthNotes.trim() || null,
   allergyNotes: form.allergyNotes.trim() || null,
   behaviorNotes: form.behaviorNotes.trim() || null,
@@ -96,6 +95,23 @@ const buildPayload = (form) => ({
     .map((item) => item.trim())
     .filter(Boolean),
 });
+
+const buildMultipartPayload = (payload, avatarFile) => {
+  const formData = new FormData();
+
+  formData.append(
+    'data',
+    new Blob([JSON.stringify(payload)], {
+      type: 'application/json',
+    })
+  );
+
+  if (avatarFile) {
+    formData.append('avatarFile', avatarFile);
+  }
+
+  return formData;
+};
 
 const AddPetPage = () => {
   const navigate = useNavigate();
@@ -107,6 +123,8 @@ const AddPetPage = () => {
   const ownerUserId = useMemo(() => resolveOwnerUserId(account), [account]);
 
   const [formData, setFormData] = useState(emptyForm);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [localAvatarPreview, setLocalAvatarPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingPet, setLoadingPet] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -116,12 +134,16 @@ const AddPetPage = () => {
     if (!isEditMode || !ownerUserId) return;
 
     let isMounted = true;
+
     const fetchPet = async () => {
       try {
         setLoadingPet(true);
         setError('');
+
         const data = await getPetDetail(ownerUserId, petId);
+
         if (!isMounted) return;
+
         setFormData(normalizePetToForm(data));
       } catch (err) {
         if (!isMounted) return;
@@ -132,24 +154,58 @@ const AddPetPage = () => {
     };
 
     fetchPet();
+
     return () => {
       isMounted = false;
     };
   }, [isEditMode, ownerUserId, petId]);
+
+  useEffect(() => {
+    return () => {
+      if (localAvatarPreview) {
+        URL.revokeObjectURL(localAvatarPreview);
+      }
+    };
+  }, [localAvatarPreview]);
 
   const previewPhotos = formData.photoUrlsText
     .split('\n')
     .map((url) => url.trim())
     .filter(Boolean);
 
-  const avatarPreview = formData.avatarUrl?.trim() || previewPhotos[0] || '';
+  const avatarPreview = localAvatarPreview || formData.avatarUrl?.trim() || previewPhotos[0] || '';
 
   const handleChange = (field) => (event) => {
     setFormData((prev) => ({ ...prev, [field]: event.target.value }));
   };
 
+  const handleAvatarFileChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Vui lòng chọn file ảnh hợp lệ.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Ảnh không được vượt quá 5MB.');
+      return;
+    }
+
+    if (localAvatarPreview) {
+      URL.revokeObjectURL(localAvatarPreview);
+    }
+
+    setError('');
+    setAvatarFile(file);
+    setLocalAvatarPreview(URL.createObjectURL(file));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!ownerUserId) {
       setError('Không tìm thấy ownerUserId. Hãy đăng nhập trước khi lưu thú cưng.');
       return;
@@ -163,12 +219,14 @@ const AddPetPage = () => {
     try {
       setLoading(true);
       setError('');
+
       const payload = buildPayload(formData);
+      const multipartPayload = buildMultipartPayload(payload, avatarFile);
 
       if (isEditMode) {
-        await updatePet(ownerUserId, petId, payload);
+        await updatePet(ownerUserId, petId, multipartPayload);
       } else {
-        await createPet(ownerUserId, payload);
+        await createPet(ownerUserId, multipartPayload);
       }
 
       setSuccess(true);
@@ -192,9 +250,11 @@ const AddPetPage = () => {
           >
             <ArrowLeft className="w-6 h-6 text-gray-600 group-hover:text-orange-500" />
           </button>
+
           <span className="font-black text-xl tracking-tight">
             {isEditMode ? 'Cập nhật thú cưng' : 'Thêm thú cưng mới'}
           </span>
+
           <div className="w-10" />
         </div>
       </header>
@@ -207,10 +267,15 @@ const AddPetPage = () => {
                 <div className="w-24 h-24 bg-green-50 rounded-[2.5rem] flex items-center justify-center mb-6">
                   <CheckCircle2 className="w-12 h-12 text-green-500 animate-bounce" />
                 </div>
+
                 <h2 className="text-3xl font-black mb-2">Hoàn tất!</h2>
+
                 <p className="text-gray-500 font-bold">
-                  {isEditMode ? 'Thông tin thú cưng đã được cập nhật.' : 'Thú cưng của bạn đã được thêm thành công.'}
+                  {isEditMode
+                    ? 'Thông tin thú cưng đã được cập nhật.'
+                    : 'Thú cưng của bạn đã được thêm thành công.'}
                 </p>
+
                 <p className="text-gray-400 text-sm mt-1">Đang chuyển hướng về trang cá nhân...</p>
               </div>
             ) : loadingPet ? (
@@ -221,12 +286,15 @@ const AddPetPage = () => {
             ) : showLoginRequired ? (
               <div className="bg-amber-50 border border-amber-100 rounded-[2rem] p-8 text-center space-y-4">
                 <h2 className="text-2xl font-black text-amber-900">Bạn cần đăng nhập trước</h2>
+
                 <p className="text-amber-700 font-medium max-w-xl mx-auto">
                   Trang này cần `ownerUserId` từ tài khoản đã đăng nhập để gọi API Pet CRUD.
                 </p>
+
                 <p className="text-xs text-amber-600 font-bold">
                   Nếu bạn đang test backend độc lập, có thể lưu thủ công `petgo_owner_user_id` vào localStorage.
                 </p>
+
                 <div className="flex justify-center gap-3 pt-2">
                   <button
                     onClick={() => navigate('/login')}
@@ -234,6 +302,7 @@ const AddPetPage = () => {
                   >
                     Đăng nhập
                   </button>
+
                   <button
                     onClick={() => navigate('/profile')}
                     className="px-6 py-3 bg-white text-gray-700 rounded-2xl font-black border border-gray-200 hover:bg-gray-50 transition-all"
@@ -245,7 +314,7 @@ const AddPetPage = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="flex flex-col items-center">
-                  <div className="relative group">
+                  <label className="relative group cursor-pointer">
                     <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-[2.5rem] bg-orange-50 border-4 border-dashed border-orange-200 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:bg-orange-100 group-hover:border-orange-300">
                       {avatarPreview ? (
                         <img src={avatarPreview} alt="Pet preview" className="w-full h-full object-cover" />
@@ -253,18 +322,37 @@ const AddPetPage = () => {
                         <>
                           <Camera className="w-10 h-10 text-orange-400 mb-2 group-hover:scale-110 transition-transform" />
                           <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest text-center px-3">
-                            Dùng URL ảnh để hiển thị preview
+                            Chọn ảnh từ máy
                           </span>
                         </>
                       )}
                     </div>
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileChange}
+                      className="hidden"
+                    />
+
                     <div className="absolute -bottom-2 -right-2 bg-orange-500 p-2.5 rounded-2xl shadow-lg border-4 border-white transition-transform group-hover:scale-110">
-                      {isEditMode ? <PencilLine className="w-5 h-5 text-white" /> : <Info className="w-5 h-5 text-white" />}
+                      {isEditMode ? (
+                        <PencilLine className="w-5 h-5 text-white" />
+                      ) : (
+                        <Camera className="w-5 h-5 text-white" />
+                      )}
                     </div>
-                  </div>
+                  </label>
+
                   <p className="text-xs font-bold text-gray-400 mt-4 uppercase tracking-widest italic text-center">
-                    Backend hiện nhận avatarUrl và photoUrls dạng URL, chưa phải upload file nhị phân.
+                    Nhấn vào khung ảnh để chọn ảnh từ máy.
                   </p>
+
+                  {avatarFile && (
+                    <p className="text-xs font-bold text-orange-500 mt-2">
+                      Đã chọn: {avatarFile.name}
+                    </p>
+                  )}
                 </div>
 
                 {error && (
@@ -275,47 +363,111 @@ const AddPetPage = () => {
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <FormInput label="Tên thú cưng" value={formData.name} onChange={handleChange('name')} placeholder="VD: Mochi, Lu, ..." required />
-                  <FormSelect label="Loại thú cưng" value={formData.species} onChange={handleChange('species')} options={SPECIES_OPTIONS} />
-                  <FormInput label="Giống loài" value={formData.breed} onChange={handleChange('breed')} placeholder="VD: Golden Retriever" />
-                  <FormInput label="Tuổi hiển thị" value={formData.ageLabel} onChange={handleChange('ageLabel')} placeholder="VD: 2 tuổi" />
-                  <FormInput label="Ngày sinh" type="date" value={formData.dateOfBirth} onChange={handleChange('dateOfBirth')} />
-                  <FormInput label="Cân nặng (kg)" type="number" step="0.1" value={formData.weightKg} onChange={handleChange('weightKg')} placeholder="VD: 15.5" />
-                  <FormSelect label="Giới tính" value={formData.gender} onChange={handleChange('gender')} options={GENDER_OPTIONS} />
-                  <FormSelect label="Kích thước" value={formData.size} onChange={handleChange('size')} options={SIZE_OPTIONS} />
-                  <FormInput label="Màu sắc" value={formData.color} onChange={handleChange('color')} placeholder="VD: Vàng kem" />
-                  <FormInput label="Avatar URL" value={formData.avatarUrl} onChange={handleChange('avatarUrl')} placeholder="https://..." />
+                  <FormInput
+                    label="Tên thú cưng"
+                    value={formData.name}
+                    onChange={handleChange('name')}
+                    placeholder="VD: Mochi, Lu, ..."
+                    required
+                  />
+
+                  <FormSelect
+                    label="Loại thú cưng"
+                    value={formData.species}
+                    onChange={handleChange('species')}
+                    options={SPECIES_OPTIONS}
+                  />
+
+                  <FormInput
+                    label="Giống loài"
+                    value={formData.breed}
+                    onChange={handleChange('breed')}
+                    placeholder="VD: Golden Retriever"
+                  />
+
+                  <FormInput
+                    label="Tuổi hiển thị"
+                    value={formData.ageLabel}
+                    onChange={handleChange('ageLabel')}
+                    placeholder="VD: 2 tuổi"
+                  />
+
+                  <FormInput
+                    label="Ngày sinh"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={handleChange('dateOfBirth')}
+                  />
+
+                  <FormInput
+                    label="Cân nặng (kg)"
+                    type="number"
+                    step="0.1"
+                    value={formData.weightKg}
+                    onChange={handleChange('weightKg')}
+                    placeholder="VD: 15.5"
+                  />
+
+                  <FormSelect
+                    label="Giới tính"
+                    value={formData.gender}
+                    onChange={handleChange('gender')}
+                    options={GENDER_OPTIONS}
+                  />
+
+                  <FormSelect
+                    label="Kích thước"
+                    value={formData.size}
+                    onChange={handleChange('size')}
+                    options={SIZE_OPTIONS}
+                  />
+
+                  <FormInput
+                    label="Màu sắc"
+                    value={formData.color}
+                    onChange={handleChange('color')}
+                    placeholder="VD: Vàng kem"
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Danh sách ảnh phụ</label>
-                  <textarea
-                    rows={4}
-                    value={formData.photoUrlsText}
-                    onChange={handleChange('photoUrlsText')}
-                    placeholder="Mỗi dòng một URL ảnh\nhttps://example.com/pet-1.jpg\nhttps://example.com/pet-2.jpg"
-                    className="w-full px-6 py-4 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-bold text-gray-900 placeholder:text-gray-300 resize-none"
-                  />
-                  {previewPhotos.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                      {previewPhotos.slice(0, 4).map((url) => (
-                        <img key={url} src={url} alt="Preview" className="w-full h-24 object-cover rounded-2xl border border-gray-100" />
-                      ))}
-                    </div>
-                  )}
-                </div>
+              
 
                 <div className="grid grid-cols-1 gap-6">
-                  <TextAreaField label="Ghi chú sức khỏe" value={formData.healthNotes} onChange={handleChange('healthNotes')} placeholder="Tình trạng sức khỏe, bệnh nền, lưu ý khi chăm sóc..." />
-                  <TextAreaField label="Dị ứng" value={formData.allergyNotes} onChange={handleChange('allergyNotes')} placeholder="Các loại thức ăn, thuốc hoặc môi trường cần tránh..." />
-                  <TextAreaField label="Hành vi" value={formData.behaviorNotes} onChange={handleChange('behaviorNotes')} placeholder="Thân thiện, nhút nhát, tăng động, thích đi dạo..." />
-                  <TextAreaField label="Tiêm phòng" value={formData.vaccinationNotes} onChange={handleChange('vaccinationNotes')} placeholder="Đã tiêm những mũi nào, thời điểm tiêm gần nhất..." />
+                  <TextAreaField
+                    label="Ghi chú sức khỏe"
+                    value={formData.healthNotes}
+                    onChange={handleChange('healthNotes')}
+                    placeholder="Tình trạng sức khỏe, bệnh nền, lưu ý khi chăm sóc..."
+                  />
+
+                  <TextAreaField
+                    label="Dị ứng"
+                    value={formData.allergyNotes}
+                    onChange={handleChange('allergyNotes')}
+                    placeholder="Các loại thức ăn, thuốc hoặc môi trường cần tránh..."
+                  />
+
+                  <TextAreaField
+                    label="Hành vi"
+                    value={formData.behaviorNotes}
+                    onChange={handleChange('behaviorNotes')}
+                    placeholder="Thân thiện, nhút nhát, tăng động, thích đi dạo..."
+                  />
+
+                  <TextAreaField
+                    label="Tiêm phòng"
+                    value={formData.vaccinationNotes}
+                    onChange={handleChange('vaccinationNotes')}
+                    placeholder="Đã tiêm những mũi nào, thời điểm tiêm gần nhất..."
+                  />
                 </div>
 
                 <div className="p-6 bg-blue-50/50 rounded-[2rem] border border-blue-50 flex gap-4">
                   <AlertCircle className="w-6 h-6 text-blue-500 shrink-0 mt-0.5" />
+
                   <div className="space-y-1">
                     <p className="text-sm font-black text-blue-900">Gợi ý nhập liệu</p>
+
                     <p className="text-xs font-bold text-blue-600/80 leading-relaxed italic">
                       Bạn có thể nhập ageLabel để hiển thị đẹp trên UI, còn dateOfBirth giúp backend có dữ liệu chuẩn hơn cho các chức năng sau.
                     </p>
@@ -330,6 +482,7 @@ const AddPetPage = () => {
                   >
                     Hủy bỏ
                   </button>
+
                   <button
                     type="submit"
                     disabled={loading}
@@ -359,7 +512,10 @@ const AddPetPage = () => {
 
 const FormInput = ({ label, placeholder, type = 'text', value, onChange, ...props }) => (
   <div className="space-y-2">
-    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{label}</label>
+    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+      {label}
+    </label>
+
     <input
       type={type}
       value={value}
@@ -373,7 +529,10 @@ const FormInput = ({ label, placeholder, type = 'text', value, onChange, ...prop
 
 const FormSelect = ({ label, value, onChange, options }) => (
   <div className="space-y-2">
-    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{label}</label>
+    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+      {label}
+    </label>
+
     <div className="relative">
       <select
         value={value}
@@ -381,9 +540,12 @@ const FormSelect = ({ label, value, onChange, options }) => (
         className="w-full px-6 py-4 bg-gray-50 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-orange-500 transition-all outline-none font-bold text-gray-900 appearance-none cursor-pointer"
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
         ))}
       </select>
+
       <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500 pointer-events-none" />
     </div>
   </div>
@@ -391,7 +553,10 @@ const FormSelect = ({ label, value, onChange, options }) => (
 
 const TextAreaField = ({ label, value, onChange, placeholder }) => (
   <div className="space-y-2">
-    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{label}</label>
+    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+      {label}
+    </label>
+
     <textarea
       rows={4}
       value={value}
