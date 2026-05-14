@@ -9,12 +9,15 @@ import {
   User,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { registerRequest } from '../api/auth';
 
 const RegisterPage = () => {
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const initialEmail = queryParams.get('email') || location.state?.email || '';
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

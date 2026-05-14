@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { 
-  Search, 
-  MapPin, 
-  Star, 
-  Heart, 
-  Calendar, 
-  User, 
-  PawPrint, 
-  ChevronRight, 
-  ShieldCheck, 
-  Clock, 
+import React, { useContext, useState } from 'react';
+import {
+  Search,
+  MapPin,
+  Star,
+  Heart,
+  Calendar,
+  User,
+  PawPrint,
+  ChevronRight,
+  ShieldCheck,
+  Clock,
   BadgeCheck,
   Zap,
   Tag,
@@ -25,12 +25,30 @@ import {
   Check,
   ArrowRight,
   CheckCircle,
+  LogOut,
   Smile,
   Quote
 } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
+import { getRoleLandingPath, hasAdminRole, hasPartnerRole } from '../utils/partnerAccess';
 
 const App = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const { account, loadingAccount, logout } = useContext(AuthContext);
+  const canViewDashboard = account && (hasAdminRole(account) || hasPartnerRole(account));
+  const dashboardPath = canViewDashboard ? getRoleLandingPath(account, '/profile') : '/profile';
+
+  const handleProfileMenuNavigate = (path) => {
+    setIsProfileMenuOpen(false);
+    window.location.href = path;
+  };
+
+  const handleLogout = () => {
+    setIsProfileMenuOpen(false);
+    logout?.();
+    window.location.href = '/login';
+  };
 
   // Danh mục dịch vụ
   const categories = [
@@ -72,9 +90,9 @@ const App = () => {
           <div className="hidden lg:flex flex-1 max-w-sm mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Tìm spa, thú y..." 
+              <input
+                type="text"
+                placeholder="Tìm spa, thú y..."
                 className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-full text-sm outline-none focus:ring-2 focus:ring-orange-500/20 transition-all"
               />
             </div>
@@ -89,13 +107,67 @@ const App = () => {
             <a href="/membership" className="hover:text-orange-600 transition-colors flex items-center gap-1.5">
               <Crown className="w-4 h-4 text-orange-500" /> Membership
             </a>
-            <div 
-              className="w-9 h-9 rounded-full bg-orange-100 border-2 border-white flex items-center justify-center shadow-sm cursor-pointer"
-              onClick={() => window.location.href = '/profile'}
-            >
-              <User className="w-5 h-5 text-orange-600" />
-            </div>
+            {loadingAccount ? (
+              <div className="h-9 w-24 rounded-full bg-gray-100 animate-pulse" aria-label="Đang kiểm tra đăng nhập" />
+            ) : account ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  className="w-9 h-9 rounded-full bg-orange-100 border-2 border-white flex items-center justify-center shadow-sm cursor-pointer hover:bg-orange-200 transition-colors"
+                  onClick={() => setIsProfileMenuOpen((open) => !open)}
+                  aria-label="Mở menu tài khoản"
+                >
+                  <User className="w-5 h-5 text-orange-600" />
+                </button>
+                {isProfileMenuOpen && (
+                  <div className="absolute right-0 top-full mt-3 w-56 rounded-2xl bg-white border border-gray-100 shadow-2xl p-2 z-[60] normal-case tracking-normal text-left">
+                    <button
+                      type="button"
+                      onClick={() => handleProfileMenuNavigate('/profile')}
+                      className="w-full px-4 py-3 rounded-xl hover:bg-orange-50 transition-colors text-left"
+                    >
+                      <span className="block text-sm font-black text-gray-900">Profile</span>
+                      <span className="block text-[11px] font-semibold text-gray-400 mt-0.5">Thông tin cá nhân</span>
+                    </button>
+                    {canViewDashboard && (
+                      <button
+                        type="button"
+                        onClick={() => handleProfileMenuNavigate(dashboardPath)}
+                        className="w-full px-4 py-3 rounded-xl hover:bg-orange-50 transition-colors text-left"
+                      >
+                        <span className="block text-sm font-black text-gray-900">Dashboard</span>
+                        <span className="block text-[11px] font-semibold text-gray-400 mt-0.5">Khu vực quản lý theo tài khoản</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="mt-2 flex w-full items-center gap-3 rounded-xl border-t border-gray-100 px-4 py-3 text-left text-red-500 transition-colors hover:bg-red-50"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="text-sm font-black">Đăng xuất</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <a
+                href="/login"
+                className="inline-flex items-center justify-center rounded-full bg-orange-500 px-5 py-2.5 text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-orange-100 transition-all hover:bg-orange-600 hover:shadow-orange-200"
+              >
+                Đăng nhập
+              </a>
+            )}
           </nav>
+
+          {!loadingAccount && !account && (
+            <a
+              href="/login"
+              className="lg:hidden ml-auto mr-2 inline-flex items-center justify-center rounded-full bg-orange-500 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-orange-100 transition-all hover:bg-orange-600"
+            >
+              Đăng nhập
+            </a>
+          )}
 
           <button className="lg:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
             {isMenuOpen ? <X /> : <Menu />}
@@ -125,7 +197,7 @@ const App = () => {
               <MapPin className="text-orange-500 w-5 h-5" />
               <input type="text" placeholder="Hồ Chí Minh" className="w-full bg-transparent outline-none font-bold text-sm" />
             </div>
-            <button 
+            <button
               onClick={() => window.location.href = '/search'}
               className="bg-gray-900 text-white px-10 py-4 rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-orange-500 transition-all"
             >
@@ -134,13 +206,13 @@ const App = () => {
           </div>
 
           <div className="flex flex-wrap justify-center gap-4">
-            <button 
+            <button
               onClick={() => window.location.href = '/search'}
               className="px-10 py-5 bg-orange-500 text-white font-black rounded-2xl shadow-xl shadow-orange-100 hover:scale-105 transition-all uppercase tracking-widest text-xs flex items-center gap-2"
             >
               Book a Service <ArrowRight className="w-4 h-4" />
             </button>
-            <button 
+            <button
               onClick={() => window.location.href = '/membership'}
               className="px-10 py-5 bg-white text-gray-900 font-black rounded-2xl border-2 border-gray-100 hover:border-orange-500 hover:text-orange-600 transition-all uppercase tracking-widest text-xs"
             >
@@ -156,8 +228,8 @@ const App = () => {
           <h2 className="text-2xl font-black text-gray-900 uppercase tracking-widest mb-12 italic">Popular Categories</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
             {categories.map((cat, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 onClick={() => window.location.href = `/search?category=${cat.slug}`}
                 className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all cursor-pointer group"
               >
@@ -192,7 +264,7 @@ const App = () => {
       {/* NEW SECTION: Membership Promotion */}
       <section className="py-24 bg-blue-50 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-10 opacity-5">
-           <Crown className="w-96 h-96 -rotate-12 text-blue-900" />
+          <Crown className="w-96 h-96 -rotate-12 text-blue-900" />
         </div>
         <div className="max-w-7xl mx-auto px-4 relative z-10">
           <div className="flex flex-col lg:flex-row items-center gap-16">
@@ -207,7 +279,7 @@ const App = () => {
               <p className="text-gray-500 text-xl font-medium leading-relaxed">
                 Save more and unlock exclusive benefits for your pet care bookings. Join 10,000+ happy pets today.
               </p>
-              
+
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <BenefitItem text="Discount on pet services" />
                 <BenefitItem text="Monthly vouchers" />
@@ -218,13 +290,13 @@ const App = () => {
               </ul>
 
               <div className="flex flex-wrap gap-4 pt-4">
-                <button 
+                <button
                   onClick={() => window.location.href = '/membership'}
                   className="px-10 py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all uppercase tracking-widest text-xs"
                 >
                   View Membership Plans
                 </button>
-                <button 
+                <button
                   onClick={() => window.location.href = '/membership-payment?plan=pro'}
                   className="px-10 py-5 bg-white text-blue-600 font-black rounded-2xl border-2 border-blue-100 hover:bg-blue-50 transition-all uppercase tracking-widest text-xs"
                 >
@@ -235,36 +307,36 @@ const App = () => {
 
             {/* Right: Plan Teasers */}
             <div className="lg:w-1/2 grid grid-cols-1 sm:grid-cols-2 gap-6 w-full">
-               <div className="bg-white p-8 rounded-[2.5rem] border-4 border-blue-600 shadow-2xl relative">
-                  <div className="absolute -top-4 left-6 bg-blue-600 text-white text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
-                    Most Popular
-                  </div>
-                  <h3 className="text-xl font-black text-blue-600 mb-2">PRO PLAN</h3>
-                  <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-3xl font-black text-gray-900">99.000</span>
-                    <span className="text-xs font-bold text-gray-400">/ mo</span>
-                  </div>
-                  <button 
-                    onClick={() => window.location.href = '/membership-payment?plan=pro'}
-                    className="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all"
-                  >
-                    Upgrade Now
-                  </button>
-               </div>
+              <div className="bg-white p-8 rounded-[2.5rem] border-4 border-blue-600 shadow-2xl relative">
+                <div className="absolute -top-4 left-6 bg-blue-600 text-white text-[9px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
+                  Most Popular
+                </div>
+                <h3 className="text-xl font-black text-blue-600 mb-2">PRO PLAN</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-black text-gray-900">99.000</span>
+                  <span className="text-xs font-bold text-gray-400">/ mo</span>
+                </div>
+                <button
+                  onClick={() => window.location.href = '/membership-payment?plan=pro'}
+                  className="w-full py-4 bg-blue-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all"
+                >
+                  Upgrade Now
+                </button>
+              </div>
 
-               <div className="bg-gray-900 p-8 rounded-[2.5rem] shadow-xl text-white transform lg:translate-y-12">
-                  <h3 className="text-xl font-black text-orange-500 mb-2">PREMIUM</h3>
-                  <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-3xl font-black">199.000</span>
-                    <span className="text-xs font-bold text-gray-400">/ mo</span>
-                  </div>
-                  <button 
-                    onClick={() => window.location.href = '/membership-payment?plan=premium'}
-                    className="w-full py-4 bg-white text-gray-900 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all"
-                  >
-                    Upgrade Now
-                  </button>
-               </div>
+              <div className="bg-gray-900 p-8 rounded-[2.5rem] shadow-xl text-white transform lg:translate-y-12">
+                <h3 className="text-xl font-black text-orange-500 mb-2">PREMIUM</h3>
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className="text-3xl font-black">199.000</span>
+                  <span className="text-xs font-bold text-gray-400">/ mo</span>
+                </div>
+                <button
+                  onClick={() => window.location.href = '/membership-payment?plan=premium'}
+                  className="w-full py-4 bg-white text-gray-900 font-black rounded-xl text-[10px] uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all"
+                >
+                  Upgrade Now
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -283,16 +355,16 @@ const App = () => {
       {/* Promotion Banner */}
       <section className="py-12 px-4">
         <div className="max-w-7xl mx-auto bg-gradient-to-r from-orange-500 to-yellow-400 rounded-[3rem] p-10 sm:p-20 text-white flex flex-col md:flex-row items-center justify-between gap-10 shadow-2xl shadow-orange-100">
-           <div className="text-center md:text-left">
-              <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tight">Get 20% off grooming <br className="hidden sm:block" /> services this month</h2>
-              <p className="text-orange-100 text-lg font-medium opacity-90">Dành riêng cho khách hàng đặt lịch qua ứng dụng PetGo.</p>
-           </div>
-           <button 
+          <div className="text-center md:text-left">
+            <h2 className="text-4xl sm:text-5xl font-black mb-4 tracking-tight">Get 20% off grooming <br className="hidden sm:block" /> services this month</h2>
+            <p className="text-orange-100 text-lg font-medium opacity-90">Dành riêng cho khách hàng đặt lịch qua ứng dụng PetGo.</p>
+          </div>
+          <button
             onClick={() => window.location.href = '/search'}
             className="px-12 py-5 bg-white text-orange-600 font-black rounded-2xl shadow-xl hover:scale-105 transition-all uppercase tracking-widest text-sm"
-           >
-              Book Now
-           </button>
+          >
+            Book Now
+          </button>
         </div>
       </section>
 
@@ -312,25 +384,25 @@ const App = () => {
       {/* Customer Reviews */}
       <section className="py-24 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4">
-           <h2 className="text-3xl font-black text-gray-900 mb-12 text-center uppercase tracking-widest">Happy Pet Parents</h2>
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {reviews.map((rev) => (
-                <div key={rev.id} className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm relative group hover:shadow-xl transition-all">
-                   <Quote className="absolute top-8 right-8 w-12 h-12 text-orange-50 opacity-10 group-hover:text-orange-100 group-hover:opacity-100" />
-                   <div className="flex items-center gap-4 mb-6">
-                      <img src={rev.avatar} alt={rev.name} className="w-16 h-16 rounded-full border-4 border-orange-50" />
-                      <div>
-                         <h4 className="font-black text-gray-900">{rev.name}</h4>
-                         <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">{rev.pet}</p>
-                      </div>
-                   </div>
-                   <div className="flex gap-1 mb-4 text-yellow-400">
-                      {[...Array(rev.rating)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
-                   </div>
-                   <p className="text-gray-500 font-medium leading-relaxed italic">"{rev.text}"</p>
+          <h2 className="text-3xl font-black text-gray-900 mb-12 text-center uppercase tracking-widest">Happy Pet Parents</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {reviews.map((rev) => (
+              <div key={rev.id} className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm relative group hover:shadow-xl transition-all">
+                <Quote className="absolute top-8 right-8 w-12 h-12 text-orange-50 opacity-10 group-hover:text-orange-100 group-hover:opacity-100" />
+                <div className="flex items-center gap-4 mb-6">
+                  <img src={rev.avatar} alt={rev.name} className="w-16 h-16 rounded-full border-4 border-orange-50" />
+                  <div>
+                    <h4 className="font-black text-gray-900">{rev.name}</h4>
+                    <p className="text-xs font-bold text-orange-500 uppercase tracking-widest">{rev.pet}</p>
+                  </div>
                 </div>
-              ))}
-           </div>
+                <div className="flex gap-1 mb-4 text-yellow-400">
+                  {[...Array(rev.rating)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
+                </div>
+                <p className="text-gray-500 font-medium leading-relaxed italic">"{rev.text}"</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -353,7 +425,7 @@ const App = () => {
           <FooterGroup title="Contact" links={['Support: 1900 1234', 'petgo.help@gmail.com', 'Hanoi, Vietnam']} />
         </div>
         <div className="max-w-7xl mx-auto px-4 pt-12 border-t border-gray-100 text-center">
-           <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest italic">© 2025 PetGo Platform. All rights reserved.</p>
+          <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest italic">© 2025 PetGo Platform. All rights reserved.</p>
         </div>
       </footer>
     </div>
@@ -385,13 +457,13 @@ const ProviderCard = ({ provider, badge }) => (
         <div className="flex items-center gap-1"><Tag className="w-3.5 h-3.5 text-orange-500" /> Giá từ {provider.price}đ</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <button 
+        <button
           onClick={() => window.location.href = '/providers/1'}
           className="py-3 px-2 bg-gray-100 text-gray-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all"
         >
           Details
         </button>
-        <button 
+        <button
           onClick={() => window.location.href = '/booking'}
           className="py-3 px-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-500 transition-all"
         >

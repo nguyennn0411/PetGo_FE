@@ -1,30 +1,38 @@
 import {
-  Mail,
+  Eye,
+  EyeOff,
+  Lock,
   PawPrint,
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { verifyOtpRequest } from '../api/auth';
+import { forgotPasswordRequest, resetPasswordRequest, verifyOtpRequest } from '../api/auth';
 
 const OtpVerificationPage = () => {
   const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   // Get email from query params or state
   const queryParams = new URLSearchParams(location.search);
   const email = queryParams.get('email') || location.state?.email || '';
+  const purpose = queryParams.get('purpose') || location.state?.purpose || 'verify-email';
+  const isPasswordReset = purpose === 'forgot-password';
 
   useEffect(() => {
     if (!email) {
-      setError('Không tìm thấy thông tin email. Vui lòng quay lại trang đăng ký.');
+      setError(isPasswordReset ? 'Không tìm thấy thông tin email. Vui lòng quay lại trang đăng nhập.' : 'Không tìm thấy thông tin email. Vui lòng quay lại trang đăng ký.');
     }
-  }, [email]);
+  }, [email, isPasswordReset]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,18 +44,56 @@ const OtpVerificationPage = () => {
       return;
     }
 
+    if (isPasswordReset) {
+      if (newPassword.length < 6) {
+        setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setError('Mật khẩu xác nhận không khớp.');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
-      await verifyOtpRequest({
-        email,
-        otpCode,
-      });
-      setSuccess('Xác thực thành công! Đang chuyển sang trang đăng nhập...');
+      if (isPasswordReset) {
+        await resetPasswordRequest({
+          email,
+          otpCode,
+          newPassword,
+        });
+        setSuccess('Đặt lại mật khẩu thành công! Đang chuyển sang trang đăng nhập...');
+      } else {
+        await verifyOtpRequest({
+          email,
+          otpCode,
+        });
+        setSuccess('Xác thực thành công! Đang chuyển sang trang đăng nhập...');
+      }
       setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
-      setError(err.response?.data?.message || 'Xác thực thất bại. Vui lòng kiểm tra lại mã OTP.');
+      setError(err.response?.data?.message || (isPasswordReset ? 'Đặt lại mật khẩu thất bại. Vui lòng kiểm tra lại mã OTP.' : 'Xác thực thất bại. Vui lòng kiểm tra lại mã OTP.'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!isPasswordReset || !email) return;
+
+    setError('');
+    setSuccess('');
+    setIsResending(true);
+
+    try {
+      await forgotPasswordRequest({ email });
+      setSuccess('Mã xác thực mới đã được gửi đến email của bạn.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể gửi lại mã xác thực. Vui lòng thử lại.');
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -68,11 +114,20 @@ const OtpVerificationPage = () => {
               <span className="text-3xl font-black tracking-tight">PetGo</span>
             </div>
             <h1 className="text-5xl font-black leading-[1.1] mb-6 text-white">
-              One more step <br />
-              <span className="text-orange-500">to get started.</span>
+              {isPasswordReset ? (
+                <>
+                  Reset your <br />
+                  <span className="text-orange-500">PetGo password.</span>
+                </>
+              ) : (
+                <>
+                  One more step <br />
+                  <span className="text-orange-500">to get started.</span>
+                </>
+              )}
             </h1>
             <p className="text-gray-400 text-xl font-medium max-w-md leading-relaxed">
-              Verify your email address to ensure your account is secure and active.
+              {isPasswordReset ? 'Enter the reset code from your email and choose a new secure password.' : 'Verify your email address to ensure your account is secure and active.'}
             </p>
           </div>
           <div className="relative z-10 flex items-center gap-6">
@@ -95,7 +150,7 @@ const OtpVerificationPage = () => {
           </div>
 
           <div className="mb-8">
-            <h2 className="text-4xl font-black text-gray-900 mb-2 tracking-tight">Verify Email</h2>
+            <h2 className="text-4xl font-black text-gray-900 mb-2 tracking-tight">{isPasswordReset ? 'Reset Password' : 'Verify Email'}</h2>
             <p className="text-gray-500 font-medium">We've sent a 6-digit code to <span className="text-gray-900 font-bold">{email || 'your email'}</span></p>
           </div>
 
@@ -118,6 +173,49 @@ const OtpVerificationPage = () => {
               </div>
             </div>
 
+            {isPasswordReset && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-gray-900 ml-1 uppercase tracking-widest">New Password</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      minLength="6"
+                      className="w-full pl-12 pr-12 py-4 bg-gray-50 border-2 border-transparent rounded-2xl outline-none focus:border-orange-500/30 focus:bg-white focus:ring-4 focus:ring-orange-500/5 transition-all font-medium text-gray-900"
+                      required={isPasswordReset}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors">
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-black text-gray-900 ml-1 uppercase tracking-widest">Confirm</label>
+                  <div className="relative group">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      minLength="6"
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent rounded-2xl outline-none focus:border-orange-500/30 focus:bg-white focus:ring-4 focus:ring-orange-500/5 transition-all font-medium text-gray-900"
+                      required={isPasswordReset}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">{error}</div>}
             {success && <div className="rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-bold text-green-600">{success}</div>}
 
@@ -126,23 +224,24 @@ const OtpVerificationPage = () => {
               disabled={isLoading || !email}
               className="w-full py-4 rounded-2xl bg-gray-900 text-white font-black hover:bg-orange-500 transition-all disabled:opacity-60 shadow-xl shadow-gray-200 hover:shadow-orange-200"
             >
-              {isLoading ? 'Verifying...' : 'Verify & Continue'}
+              {isLoading ? (isPasswordReset ? 'Resetting...' : 'Verifying...') : (isPasswordReset ? 'Reset Password' : 'Verify & Continue')}
             </button>
 
             <div className="flex items-center justify-between px-2 pt-2">
               <button
                 type="button"
                 className="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
-                onClick={() => navigate('/register')}
+                onClick={() => navigate(isPasswordReset ? '/login' : '/register')}
               >
                 Change Email
               </button>
               <button
                 type="button"
-                className="text-sm font-bold text-orange-600 hover:text-orange-700 transition-colors"
-                onClick={() => {/* Logic to resend OTP if implemented */}}
+                className="text-sm font-bold text-orange-600 hover:text-orange-700 transition-colors disabled:cursor-not-allowed disabled:text-gray-300"
+                disabled={!isPasswordReset || isResending || isLoading || !email}
+                onClick={handleResendCode}
               >
-                Resend Code
+                {isResending ? 'Sending...' : 'Resend Code'}
               </button>
             </div>
           </form>

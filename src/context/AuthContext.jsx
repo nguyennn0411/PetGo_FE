@@ -57,6 +57,7 @@ export function AuthProvider({ children }) {
     const token = result.token || authData?.token;
     const refreshToken = result.refreshToken || authData?.refreshToken;
     const userAccount = result.user || result.account || authData?.user || authData?.account;
+    let nextAccount = null;
 
     if (token) localStorage.setItem('token', token);
     if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
@@ -67,9 +68,11 @@ export function AuthProvider({ children }) {
         localStorage.setItem('petgo_owner_user_id', String(ownerId));
       }
       setAccount(userAccount);
+      nextAccount = userAccount;
     }
 
     setIsLoggingOut(false);
+    return nextAccount;
   };
 
   const updateAccount = (updated) => {

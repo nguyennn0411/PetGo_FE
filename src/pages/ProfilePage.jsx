@@ -12,7 +12,6 @@ import {
   ExternalLink,
   Loader2,
   LogIn,
-  LogOut,
   Mail,
   MapPin,
   PawPrint,
@@ -22,11 +21,13 @@ import {
   RefreshCw,
   Settings,
   ShieldCheck,
+  Store,
   Trash2,
   User,
 } from 'lucide-react';
 import api from '../api/axios';
 import { updateMyProfile } from '../api/profile';
+import PartnerRegistrationPanel from '../components/registration/PartnerRegistrationPanel';
 import { AuthContext } from '../context/AuthContext';
 import {
   formatJoinDate,
@@ -44,7 +45,7 @@ const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'personal';
 
-  const { account, logout, updateAccount, loadingAccount } = useContext(AuthContext);
+  const { account, updateAccount, loadingAccount } = useContext(AuthContext);
   const ownerUserId = useMemo(() => resolveOwnerUserId(account), [account]);
 
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -297,14 +298,10 @@ const ProfilePage = () => {
             <TabButton active={activeTab === 'personal'} onClick={() => setActiveTab('personal')} icon={<User className="w-5 h-5" />} label="Thông tin cá nhân" />
             <TabButton active={activeTab === 'pets'} onClick={() => setActiveTab('pets')} icon={<PawPrint className="w-5 h-5" />} label="Thú cưng của tôi" />
             <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<Clock className="w-5 h-5" />} label="Lịch sử dịch vụ" />
+            <TabButton active={activeTab === 'partner-registration'} onClick={() => setActiveTab('partner-registration')} icon={<Store className="w-5 h-5" />} label="Đăng ký Partner" />
             <TabButton active={activeTab === 'security'} onClick={() => setActiveTab('security')} icon={<ShieldCheck className="w-5 h-5" />} label="Mật khẩu & Bảo mật" />
             <TabButton active={activeTab === 'payment'} onClick={() => setActiveTab('payment')} icon={<CreditCard className="w-5 h-5" />} label="Phương thức thanh toán" />
             <TabButton active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} icon={<Bell className="w-5 h-5" />} label="Thông báo" />
-
-            <button className="w-full flex items-center gap-4 p-5 rounded-[1.5rem] text-red-500 font-black hover:bg-red-50 transition-all mt-8" onClick={() => { logout?.(); navigate('/login'); }}>
-              <LogOut className="w-5 h-5" />
-              Đăng xuất
-            </button>
           </div>
 
           <div className="lg:col-span-2 space-y-8">
@@ -467,6 +464,10 @@ const ProfilePage = () => {
                   </div>
                 )}
               </div>
+            )}
+
+            {activeTab === 'partner-registration' && (
+              <PartnerRegistrationPanel account={profile?.user || account} />
             )}
 
             {(activeTab === 'security' || activeTab === 'payment' || activeTab === 'notifications') && (
