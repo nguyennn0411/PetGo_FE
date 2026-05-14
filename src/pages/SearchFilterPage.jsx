@@ -30,7 +30,7 @@ import {
 const DEFAULT_FILTERS = {
   query: '',
   city: '',
-  serviceCategorySlugs: [],
+  serviceCategoryIds: [],
   minPrice: '',
   maxPrice: '',
   minRating: '',
@@ -53,9 +53,9 @@ const SearchFilterPage = () => {
   const [location, setLocation] = useState({ latitude: '', longitude: '', enabled: false, loading: false, label: 'Chưa lấy vị trí' });
 
   const getInitialFilters = () => {
-    const categoryFromUrl = searchParams.get('category');
-    const categoriesCsv = searchParams.get('serviceCategorySlugs');
-    const serviceCategorySlugs = categoriesCsv
+    const categoryFromUrl = searchParams.get('categoryId') || searchParams.get('category');
+    const categoriesCsv = searchParams.get('serviceCategoryIds') || searchParams.get('serviceCategorySlugs');
+    const serviceCategoryIds = categoriesCsv
       ? categoriesCsv.split(',').filter(Boolean)
       : categoryFromUrl
         ? [categoryFromUrl]
@@ -64,7 +64,7 @@ const SearchFilterPage = () => {
     return {
       query: searchParams.get('query') || searchParams.get('q') || '',
       city: searchParams.get('city') || '',
-      serviceCategorySlugs,
+      serviceCategoryIds,
       minPrice: searchParams.get('minPrice') || '',
       maxPrice: searchParams.get('maxPrice') || '',
       minRating: searchParams.get('minRating') || '',
@@ -93,7 +93,7 @@ const SearchFilterPage = () => {
   const buildParams = (page = 0) => ({
     query: filters.query || undefined,
     city: filters.city || undefined,
-    serviceCategorySlugs: filters.serviceCategorySlugs.length ? filters.serviceCategorySlugs.join(',') : undefined,
+    serviceCategoryIds: filters.serviceCategoryIds.length ? filters.serviceCategoryIds.join(',') : undefined,
     minPrice: filters.minPrice || undefined,
     maxPrice: filters.maxPrice || undefined,
     minRating: filters.minRating || undefined,
@@ -111,7 +111,7 @@ const SearchFilterPage = () => {
     const params = new URLSearchParams();
     if (filters.query) params.set('query', filters.query);
     if (filters.city) params.set('city', filters.city);
-    if (filters.serviceCategorySlugs.length) params.set('serviceCategorySlugs', filters.serviceCategorySlugs.join(','));
+    if (filters.serviceCategoryIds.length) params.set('serviceCategoryIds', filters.serviceCategoryIds.join(','));
     if (filters.minPrice) params.set('minPrice', filters.minPrice);
     if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
     if (filters.minRating) params.set('minRating', filters.minRating);
@@ -153,12 +153,13 @@ const SearchFilterPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, location.latitude, location.longitude, location.enabled]);
 
-  const handleCategoryChange = (slug) => {
+  const handleCategoryChange = (categoryId) => {
+    const value = String(categoryId);
     setFilters((prev) => ({
       ...prev,
-      serviceCategorySlugs: prev.serviceCategorySlugs.includes(slug)
-        ? prev.serviceCategorySlugs.filter((item) => item !== slug)
-        : [...prev.serviceCategorySlugs, slug],
+      serviceCategoryIds: prev.serviceCategoryIds.includes(value)
+        ? prev.serviceCategoryIds.filter((item) => item !== value)
+        : [...prev.serviceCategoryIds, value],
     }));
   };
 
@@ -196,7 +197,7 @@ const SearchFilterPage = () => {
   };
 
   const headerStats = useMemo(() => {
-    const appliedCategories = filters.serviceCategorySlugs.length;
+    const appliedCategories = filters.serviceCategoryIds.length;
     const appliedExtras = [filters.city, filters.minPrice, filters.maxPrice, filters.minRating, filters.maxDistanceKm, filters.timeOfDay]
       .filter(Boolean).length;
     return appliedCategories + appliedExtras + (filters.featuredOnly ? 1 : 0);
@@ -312,17 +313,12 @@ const SearchFilterPage = () => {
               <FilterGroup label="Loại dịch vụ">
                 <div className="space-y-3 max-h-56 overflow-auto pr-1">
                   {(filterOptions.serviceCategories || []).map((item) => (
-                    <label key={item.slug} className="flex items-center gap-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={filters.serviceCategorySlugs.includes(item.slug)}
-                        onChange={() => handleCategoryChange(item.slug)}
-                        className="w-5 h-5 rounded-lg border-2 border-gray-200 text-orange-500 focus:ring-0 cursor-pointer transition-all"
-                      />
-                      <span className="text-sm font-bold text-gray-500 group-hover:text-gray-900 transition-colors">
-                        {item.name}
-                      </span>
-                    </label>
+                    <CategoryFilterNode
+                      key={item.id}
+                      category={item}
+                      selectedIds={filters.serviceCategoryIds}
+                      onChange={handleCategoryChange}
+                    />
                   ))}
                 </div>
               </FilterGroup>
@@ -388,11 +384,10 @@ const SearchFilterPage = () => {
                       key={value}
                       type="button"
                       onClick={() => setFilters((prev) => ({ ...prev, timeOfDay: prev.timeOfDay === value ? '' : value }))}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${
-                        filters.timeOfDay === value
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${filters.timeOfDay === value
                           ? 'bg-gray-900 text-white border-gray-900'
                           : 'bg-gray-50 border-transparent hover:border-orange-200 hover:bg-white'
-                      }`}
+                        }`}
                     >
                       {mapTimeOfDayLabel(value)}
                     </button>
@@ -517,6 +512,40 @@ const FilterGroup = ({ label, children }) => (
     {children}
   </div>
 );
+
+const CategoryFilterNode = ({ category, selectedIds, onChange, level = 0 }) => {
+  const value = String(category.id);
+  const children = Array.isArray(category.children) ? category.children : [];
+
+  return (
+    <div>
+      <label className="flex items-center gap-3 cursor-pointer group" style={{ paddingLeft: level * 16 }}>
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(value)}
+          onChange={() => onChange(value)}
+          className="w-5 h-5 rounded-lg border-2 border-gray-200 text-orange-500 focus:ring-0 cursor-pointer transition-all"
+        />
+        <span className="text-sm font-bold text-gray-500 group-hover:text-gray-900 transition-colors">
+          {category.name}
+        </span>
+      </label>
+      {children.length > 0 && (
+        <div className="mt-2 space-y-2 border-l border-dashed border-gray-200 ml-2 pl-2">
+          {children.map((child) => (
+            <CategoryFilterNode
+              key={child.id}
+              category={child}
+              selectedIds={selectedIds}
+              onChange={onChange}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ProviderResultCard = ({ provider, layout, isFavorite, onToggleFavorite }) => {
   const navigate = useNavigate();

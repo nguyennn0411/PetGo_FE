@@ -8,7 +8,14 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const publicEndpoints = ["/auth/login", "/auth/register", "/auth/refresh"];
+    const publicEndpoints = [
+      "/auth/login",
+      "/auth/register",
+      "/auth/verify-otp",
+      "/auth/forgot-password",
+      "/auth/reset-password",
+      "/auth/refresh",
+    ];
     const isPublic = publicEndpoints.some((endpoint) => config.url?.includes(endpoint));
 
     if (!isPublic) {
@@ -41,6 +48,9 @@ api.interceptors.response.use(
     const noRetryEndpoints = [
       "/auth/login",
       "/auth/register",
+      "/auth/verify-otp",
+      "/auth/forgot-password",
+      "/auth/reset-password",
       "/auth/refresh",
       "/auth/logout",
     ];

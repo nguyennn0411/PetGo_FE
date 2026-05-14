@@ -39,6 +39,14 @@ import AdminNotifications from './pages/admin/AdminNotifications';
 import AdminLogs from './pages/admin/AdminLogs';
 import AdminReports from './pages/admin/AdminReports';
 import HelpCenterPage from './pages/HelpCenterPage';
+import PartnerDashboardPage from './pages/partner/PartnerDashboardPage';
+import PartnerProfilePage from './pages/partner/PartnerProfilePage';
+import PartnerServicesPage from './pages/partner/PartnerServicesPage';
+import PartnerSchedulePage from './pages/partner/PartnerSchedulePage';
+import PartnerBookingsPage from './pages/partner/PartnerBookingsPage';
+import PartnerBookingDetailPage from './pages/partner/PartnerBookingDetailPage';
+import PartnerRevenuePage from './pages/partner/PartnerRevenuePage';
+import PartnerPlaceholderPage from './pages/partner/PartnerPlaceholderPage';
 
 export default function App() {
   return (
@@ -85,6 +93,21 @@ export default function App() {
         <Route path='/admin/notifications' element={<AdminNotifications />} />
         <Route path='/admin/logs' element={<AdminLogs />} />
         <Route path='/admin/reports' element={<AdminReports />} />
+
+        {/* Partner Routes */}
+        <Route path='/partner' element={<Navigate to='/partner/dashboard' replace />} />
+        <Route path='/partner/dashboard' element={<PartnerDashboardPage />} />
+        <Route path='/partner/profile' element={<PartnerProfilePage />} />
+        <Route path='/partner/services' element={<PartnerServicesPage />} />
+        <Route path='/partner/schedule' element={<PartnerSchedulePage />} />
+        <Route path='/partner/bookings' element={<PartnerBookingsPage />} />
+        <Route path='/partner/bookings/:id' element={<PartnerBookingDetailPage />} />
+        <Route path='/partner/revenue' element={<PartnerRevenuePage />} />
+        <Route path='/partner/customers' element={<PartnerPlaceholderPage type='customers' />} />
+        <Route path='/partner/reviews' element={<PartnerPlaceholderPage type='reviews' />} />
+        <Route path='/partner/notifications' element={<PartnerPlaceholderPage type='notifications' />} />
+        <Route path='/partner/settings' element={<PartnerPlaceholderPage type='settings' />} />
+        <Route path='/partner/support' element={<PartnerPlaceholderPage type='support' />} />
 
         <Route path='/help-center' element={<HelpCenterPage />} />
 

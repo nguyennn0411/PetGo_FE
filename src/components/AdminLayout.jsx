@@ -68,6 +68,9 @@ const AdminLayout = ({ children, title }) => {
         <div className="topbar">
           <div className="topbar-title">{title || "Dashboard admin"}</div>
           <div className="topbar-actions">
+            <button className="commerce-switch-btn" onClick={() => navigate('/')} title="Về trang thương mại">
+              🛒 Trang thương mại
+            </button>
             <div className="topbar-notif" title="Thông báo">
               🔔<div className="notif-dot"></div>
             </div>
