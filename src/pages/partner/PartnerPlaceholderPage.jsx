@@ -7,7 +7,6 @@ const descriptions = {
     revenue: 'Doanh thu, invoice và payment sẽ được mở rộng trong phase tài chính.',
     reviews: 'Review list/reply/report sẽ được triển khai sau khi chốt rule partner phản hồi review.',
     notifications: 'Notification center sẽ được triển khai sau khi chốt polling/email/realtime.',
-    settings: 'Cài đặt vận hành sẽ được triển khai sau khi chốt chính sách hủy/đổi lịch và cấu hình shop.',
     support: 'Support ticket sẽ được triển khai sau khi chốt scope hỗ trợ/khiếu nại.',
 };
 
@@ -16,7 +15,6 @@ const titles = {
     revenue: 'Doanh thu',
     reviews: 'Đánh giá',
     notifications: 'Thông báo',
-    settings: 'Cài đặt',
     support: 'Hỗ trợ',
 };
 

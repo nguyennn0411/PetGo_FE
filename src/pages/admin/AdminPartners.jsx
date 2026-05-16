@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/AdminLayout';
+import { AdminDialog, AdminToastStack, getAdminErrorMessage, useAdminDialog, useAdminToast } from '../../components/admin/AdminFeedback';
 import {
   getPendingProviders,
   getVerifiedProviders,
@@ -11,6 +12,7 @@ import {
   getAdminRegistrationDetail,
   getAdminRegistrations,
   rejectRegistration,
+  requestRegistrationAdditionalInfo,
 } from '../../api/registrations';
 import {
   REGISTRATION_STATUS,
@@ -33,6 +35,8 @@ const AdminPartners = () => {
   const [sourceFilter, setSourceFilter] = useState('ALL');
   const [dateFilter, setDateFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('NEWEST');
+  const { toasts, showToast, dismissToast } = useAdminToast();
+  const { dialog, confirmDialog, promptDialog, closeDialog } = useAdminDialog();
 
   useEffect(() => {
     fetchData();
@@ -70,10 +74,19 @@ const AdminPartners = () => {
       } else {
         console.error('Lỗi khi lấy hồ sơ đăng ký partner:', registrationsResult.reason);
         setApplications([]);
-        alert(registrationsResult.reason?.response?.data?.message || 'Không thể tải hồ sơ đăng ký partner. Hãy đăng nhập lại tài khoản admin nếu token đã cũ.');
+        showToast({
+          tone: 'error',
+          title: 'Không tải được hồ sơ đăng ký',
+          message: getAdminErrorMessage(registrationsResult.reason, 'Không thể tải hồ sơ đăng ký partner. Hãy đăng nhập lại tài khoản admin nếu token đã cũ.'),
+        });
       }
     } catch (error) {
       console.error('Lỗi khi lấy dữ liệu đối tác:', error);
+      showToast({
+        tone: 'error',
+        title: 'Không tải được dữ liệu đối tác',
+        message: getAdminErrorMessage(error, 'Không thể tải dữ liệu đối tác lúc này.'),
+      });
     } finally {
       setLoading(false);
     }
@@ -97,7 +110,11 @@ const AdminPartners = () => {
       setSelectedProvider(data);
     } catch (error) {
       console.error('Lỗi khi lấy chi tiết shop:', error);
-      alert('Không thể tải chi tiết shop.');
+      showToast({
+        tone: 'error',
+        title: 'Không mở được chi tiết shop',
+        message: getAdminErrorMessage(error, 'Không thể tải chi tiết shop.'),
+      });
       closeModal();
     } finally {
       setFetchingDetail(false);
@@ -115,7 +132,11 @@ const AdminPartners = () => {
       setSelectedApplication(data);
     } catch (error) {
       console.error('Lỗi khi lấy chi tiết hồ sơ đăng ký:', error);
-      alert('Không thể tải chi tiết hồ sơ đăng ký.');
+      showToast({
+        tone: 'error',
+        title: 'Không mở được hồ sơ đăng ký',
+        message: getAdminErrorMessage(error, 'Không thể tải chi tiết hồ sơ đăng ký.'),
+      });
       closeModal();
     } finally {
       setFetchingDetail(false);
@@ -127,30 +148,93 @@ const AdminPartners = () => {
   };
 
   const handleApproveApplication = async (applicationId) => {
-    const message = window.prompt('Ghi chú duyệt hồ sơ (có thể để trống):', 'Hồ sơ đã được duyệt.');
+    const message = await promptDialog({
+      tone: 'success',
+      title: 'Duyệt hồ sơ partner',
+      message: 'Nhập ghi chú gửi đến partner sau khi hồ sơ được duyệt.',
+      defaultValue: 'Hồ sơ đã được duyệt.',
+      confirmLabel: 'Duyệt hồ sơ',
+      cancelLabel: 'Hủy',
+      helperText: 'Có thể để trống nếu không cần gửi thêm ghi chú.',
+    });
     if (message === null) return;
     try {
       await approveRegistration(applicationId, { message });
-      alert('Đã duyệt hồ sơ partner thành công!');
+      showToast({
+        tone: 'success',
+        title: 'Đã duyệt hồ sơ partner',
+        message: 'Partner sẽ nhận được thông báo và có thể tiếp tục thiết lập shop.',
+      });
       closeModal();
       fetchData();
     } catch (error) {
       console.error('Lỗi khi duyệt hồ sơ partner:', error);
-      alert(error.response?.data?.message || 'Duyệt hồ sơ partner thất bại.');
+      showToast({
+        tone: 'error',
+        title: 'Duyệt hồ sơ thất bại',
+        message: getAdminErrorMessage(error, 'Duyệt hồ sơ partner thất bại.'),
+      });
     }
   };
 
   const handleRejectApplication = async (applicationId) => {
-    const message = window.prompt('Nhập lý do từ chối hồ sơ:');
+    const message = await promptDialog({
+      tone: 'error',
+      title: 'Từ chối hồ sơ partner',
+      message: 'Nhập lý do từ chối để partner biết cần điều chỉnh nội dung nào.',
+      placeholder: 'Ví dụ: Thiếu giấy tờ xác minh hoặc thông tin cửa hàng chưa đầy đủ...',
+      required: true,
+      confirmLabel: 'Từ chối hồ sơ',
+      cancelLabel: 'Hủy',
+    });
     if (!message) return;
     try {
       await rejectRegistration(applicationId, { message });
-      alert('Đã từ chối hồ sơ partner.');
+      showToast({
+        tone: 'success',
+        title: 'Đã từ chối hồ sơ',
+        message: 'Lý do từ chối đã được ghi nhận để partner theo dõi.',
+      });
       closeModal();
       fetchData();
     } catch (error) {
       console.error('Lỗi khi từ chối hồ sơ partner:', error);
-      alert(error.response?.data?.message || 'Từ chối hồ sơ partner thất bại.');
+      showToast({
+        tone: 'error',
+        title: 'Từ chối hồ sơ thất bại',
+        message: getAdminErrorMessage(error, 'Từ chối hồ sơ partner thất bại.'),
+      });
+    }
+  };
+
+
+  const handleRequestAdditionalInfoApplication = async (applicationId) => {
+    const message = await promptDialog({
+      tone: 'warning',
+      title: 'Yêu cầu partner bổ sung',
+      message: 'Nhập rõ các thông tin hoặc giấy tờ partner cần bổ sung.',
+      placeholder: 'Ví dụ: Vui lòng bổ sung ảnh mặt tiền cửa hàng và giấy phép kinh doanh...',
+      required: true,
+      confirmLabel: 'Gửi yêu cầu',
+      cancelLabel: 'Hủy',
+    });
+    if (!message?.trim()) return;
+    try {
+      await requestRegistrationAdditionalInfo(applicationId, { message: message.trim() });
+      showToast({
+        tone: 'success',
+        title: 'Đã gửi yêu cầu bổ sung',
+        message: 'Partner sẽ nhận được thông báo kèm nội dung admin vừa nhập.',
+      });
+      closeModal();
+      fetchData();
+    } catch (error) {
+      console.error('Lỗi khi yêu cầu bổ sung thông tin:', error);
+      showToast({
+        tone: 'error',
+        title: 'Gửi yêu cầu bổ sung thất bại',
+        message: getAdminErrorMessage(error, 'Yêu cầu bổ sung thông tin thất bại.'),
+      });
     }
   };
 
@@ -158,15 +242,30 @@ const AdminPartners = () => {
     const isLocked = currentStatus === 'INACTIVE' || currentStatus === 'LOCKED';
     const newStatus = isLocked ? 'ACTIVE' : 'INACTIVE';
 
-    if (!window.confirm(`Bạn có chắc muốn ${isLocked ? 'mở khóa' : 'khóa'} shop này?`)) return;
+    const accepted = await confirmDialog({
+      tone: isLocked ? 'success' : 'error',
+      title: isLocked ? 'Mở khóa shop?' : 'Khóa shop?',
+      message: `Bạn có chắc muốn ${isLocked ? 'mở khóa' : 'khóa'} shop này?`,
+      confirmLabel: isLocked ? 'Mở khóa shop' : 'Khóa shop',
+      cancelLabel: 'Hủy',
+    });
+    if (!accepted) return;
 
     try {
       await updateProviderAccountStatus(providerId, newStatus);
-      alert('Cập nhật trạng thái thành công!');
+      showToast({
+        tone: 'success',
+        title: 'Đã cập nhật trạng thái shop',
+        message: isLocked ? 'Shop đã được mở khóa và có thể hoạt động lại.' : 'Shop đã được khóa/tạm dừng thành công.',
+      });
       fetchData(); // Refresh list
     } catch (error) {
       console.error('Lỗi khi cập nhật trạng thái:', error);
-      alert('Thao tác thất bại.');
+      showToast({
+        tone: 'error',
+        title: 'Cập nhật trạng thái thất bại',
+        message: getAdminErrorMessage(error, 'Thao tác thất bại.'),
+      });
     }
   };
 
@@ -527,6 +626,9 @@ const AdminPartners = () => {
 
   return (
     <AdminLayout title="Quản lý đối tác">
+      <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
+      <AdminDialog dialog={dialog} onResolve={closeDialog} />
+
       <div className="metrics">
         <div
           className="metric-card"
@@ -638,7 +740,10 @@ const AdminPartners = () => {
             <p style={{ padding: 20 }}>Đang tải...</p>
           ) : filteredRows.length > 0 ? filteredRows.map((row) => {
             const isProvider = row.source === 'PROVIDER';
-            const isPendingApplication = row.source === 'APPLICATION' && row.statusGroup === 'PENDING';
+            const canReviewApplication = row.source === 'APPLICATION'
+              && row.rawStatus === REGISTRATION_STATUS.AWAITING_APPROVAL;
+            const isWaitingAdditionalInfo = row.source === 'APPLICATION'
+              && row.rawStatus === REGISTRATION_STATUS.NEEDS_MORE_INFO;
             const sourceBadgeClass = isProvider ? 'badge-info' : 'badge-gray';
             const rawStatusLabel = row.source === 'APPLICATION'
               ? REGISTRATION_STATUS_LABEL[row.rawStatus] || row.rawStatus
@@ -680,11 +785,15 @@ const AdminPartners = () => {
                         </button>
                       </>
                     )}
-                    {isPendingApplication && (
+                    {canReviewApplication && (
                       <>
                         <button className="btn btn-sm btn-success" onClick={() => handleApproveApplication(row.id)}>✓ Duyệt hồ sơ</button>
+                        <button className="btn btn-sm btn-warning" onClick={() => handleRequestAdditionalInfoApplication(row.id)}>↗ Yêu cầu bổ sung</button>
                         <button className="btn btn-sm btn-danger" onClick={() => handleRejectApplication(row.id)}>✗ Từ chối</button>
                       </>
+                    )}
+                    {isWaitingAdditionalInfo && (
+                      <span className="badge badge-info">Đang chờ partner bổ sung</span>
                     )}
                   </div>
                 </div>
@@ -828,6 +937,24 @@ const AdminPartners = () => {
                       <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Mô tả</label>
                       <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{selectedApplication.description || '—'}</div>
                     </div>
+                    {selectedApplication.adminMessage && (
+                      <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Yêu cầu/Ghi chú admin</label>
+                        <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{selectedApplication.adminMessage}</div>
+                      </div>
+                    )}
+                    {selectedApplication.additionalInformation && (
+                      <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Thông tin partner bổ sung</label>
+                        <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{selectedApplication.additionalInformation}</div>
+                      </div>
+                    )}
+                    {selectedApplication.rejectionReason && (
+                      <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: 12, color: '#888', marginBottom: 4 }}>Lý do từ chối</label>
+                        <div style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{selectedApplication.rejectionReason}</div>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ marginBottom: 8 }}>
@@ -846,8 +973,12 @@ const AdminPartners = () => {
                   {selectedApplication.status === REGISTRATION_STATUS.AWAITING_APPROVAL && (
                     <>
                       <button className="btn btn-danger" onClick={() => handleRejectApplication(selectedApplication.id)}>✗ Từ chối</button>
+                      <button className="btn btn-warning" onClick={() => handleRequestAdditionalInfoApplication(selectedApplication.id)}>↗ Yêu cầu bổ sung</button>
                       <button className="btn btn-success" onClick={() => handleApproveApplication(selectedApplication.id)}>✓ Duyệt hồ sơ</button>
                     </>
+                  )}
+                  {selectedApplication.status === REGISTRATION_STATUS.NEEDS_MORE_INFO && (
+                    <span className="badge badge-info">Đang chờ partner bổ sung thông tin</span>
                   )}
                 </div>
               </>

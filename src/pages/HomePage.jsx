@@ -27,7 +27,8 @@ import {
   CheckCircle,
   LogOut,
   Smile,
-  Quote
+  Quote,
+  Bell
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { getRoleLandingPath, hasAdminRole, hasPartnerRole } from '../utils/partnerAccess';
@@ -107,6 +108,11 @@ const App = () => {
             <a href="/membership" className="hover:text-orange-600 transition-colors flex items-center gap-1.5">
               <Crown className="w-4 h-4 text-orange-500" /> Membership
             </a>
+            {account && (
+              <a href="/notifications" className="hover:text-orange-600 transition-colors flex items-center gap-1.5">
+                <Bell className="w-4 h-4 text-orange-500" /> Notifications
+              </a>
+            )}
             {loadingAccount ? (
               <div className="h-9 w-24 rounded-full bg-gray-100 animate-pulse" aria-label="Đang kiểm tra đăng nhập" />
             ) : account ? (

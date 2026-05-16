@@ -10,11 +10,11 @@ const AdminDashboard = () => {
 
   const statusBadge = (s) => {
     const map = {
-      confirmed:   ['badge-success', 'Đã xác nhận'],
-      pending:     ['badge-warning', 'Chờ xác nhận'],
-      in_progress: ['badge-info',    'Đang thực hiện'],
-      completed:   ['badge-gray',    'Hoàn thành'],
-      cancelled:   ['badge-danger',  'Đã hủy'],
+      confirmed: ['badge-success', 'Đã xác nhận'],
+      pending: ['badge-warning', 'Chờ xác nhận'],
+      in_progress: ['badge-info', 'Đang thực hiện'],
+      completed: ['badge-gray', 'Hoàn thành'],
+      cancelled: ['badge-danger', 'Đã hủy'],
     };
     const [cls, label] = map[s] || ['badge-gray', s];
     return <span className={`badge ${cls}`}>{label}</span>;
@@ -22,6 +22,20 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout title="Dashboard admin">
+      <section className="admin-hero">
+        <div>
+          <p className="admin-hero-kicker">Admin workspace</p>
+          <h2 className="admin-hero-title">Trung tâm điều phối PetGo</h2>
+          <p className="admin-hero-subtitle">
+            Theo dõi người dùng, đối tác, booking, doanh thu và các tác vụ cần xử lý trong một giao diện đồng bộ với Partner Dashboard.
+          </p>
+        </div>
+        <div className="admin-hero-actions">
+          <button className="btn">📝 Duyệt đối tác</button>
+          <button className="btn btn-primary">📊 Xuất báo cáo</button>
+        </div>
+      </section>
+
       <div className="metrics">
         <div className="metric-card"><div className="metric-label">Tổng người dùng</div><div className="metric-value">2,847</div><div className="metric-change metric-up">↑ 12% tháng này</div></div>
         <div className="metric-card"><div className="metric-label">Tổng đối tác</div><div className="metric-value">156</div><div className="metric-change metric-up">↑ 8 đối tác mới</div></div>
