@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { updateMyProfile } from '../api/profile';
-import PartnerRegistrationPanel from '../components/registration/PartnerRegistrationPanel';
+import NotificationCenter from '../components/NotificationCenter';
 import { AuthContext } from '../context/AuthContext';
 import {
   formatJoinDate,
@@ -467,10 +467,16 @@ const ProfilePage = () => {
             )}
 
             {activeTab === 'partner-registration' && (
-              <PartnerRegistrationPanel account={profile?.user || account} />
+              <PartnerRegistrationChoice onSelectShop={() => navigate('/partner-registration/shop')} />
             )}
 
-            {(activeTab === 'security' || activeTab === 'payment' || activeTab === 'notifications') && (
+            {activeTab === 'notifications' && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                <NotificationCenter />
+              </div>
+            )}
+
+            {(activeTab === 'security' || activeTab === 'payment') && (
               <div className="bg-white p-12 rounded-[2.5rem] shadow-sm border border-white flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-20 h-20 bg-orange-50 rounded-[2rem] flex items-center justify-center mb-6">
                   <Settings className="w-10 h-10 text-orange-500 animate-spin-slow" />
@@ -533,6 +539,57 @@ const ProfilePage = () => {
     </div>
   );
 };
+
+const PartnerRegistrationChoice = ({ onSelectShop }) => (
+  <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-white space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+    <div className="space-y-3">
+      <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+        <Store className="w-7 h-7" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-black">Chọn loại đăng ký Partner</h2>
+        <p className="text-gray-500 font-medium mt-1">Bắt đầu bằng luồng đăng ký phù hợp. Hiện tại PetGo đang mở đăng ký cho shop/dịch vụ.</p>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <button
+        type="button"
+        onClick={onSelectShop}
+        className="group min-h-48 rounded-[2rem] bg-orange-50 p-6 text-left border border-orange-100 transition-all hover:-translate-y-1 hover:bg-orange-500 hover:text-white hover:shadow-2xl hover:shadow-orange-100 active:scale-[0.98]"
+      >
+        <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-orange-500 shadow-sm transition-all group-hover:bg-white/20 group-hover:text-white">
+          <Store className="w-7 h-7" />
+        </span>
+        <span className="block text-xl font-black text-gray-900 transition-colors group-hover:text-white">Đăng ký cho shop</span>
+        <span className="mt-2 block text-sm font-semibold leading-relaxed text-gray-500 transition-colors group-hover:text-orange-50">
+          Dành cho shop/provider muốn tạo hồ sơ dịch vụ, gửi ảnh địa điểm và chờ admin xét duyệt.
+        </span>
+        <span className="mt-5 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-orange-600 transition-colors group-hover:text-white">
+          Bắt đầu đăng ký
+          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+        </span>
+      </button>
+
+      <button
+        type="button"
+        disabled
+        className="min-h-48 cursor-not-allowed rounded-[2rem] bg-gray-50 p-6 text-left border border-gray-100 opacity-80"
+      >
+        <span className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-gray-400 shadow-sm">
+          <Clock className="w-7 h-7" />
+        </span>
+        <span className="block text-xl font-black text-gray-500">Sắp ra mắt</span>
+        <span className="mt-2 block text-sm font-semibold leading-relaxed text-gray-400">
+          Luồng đăng ký partner khác đang được chuẩn bị và sẽ được mở ở phiên bản sau.
+        </span>
+        <span className="mt-5 inline-flex rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">
+          Đang phát triển
+        </span>
+      </button>
+    </div>
+  </div>
+);
 
 const StatItem = ({ label, value }) => (
   <div className="text-center group cursor-default">

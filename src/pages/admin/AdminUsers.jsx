@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../components/AdminLayout';
+import { AdminDialog, AdminToastStack, getAdminErrorMessage, useAdminDialog, useAdminToast } from '../../components/admin/AdminFeedback';
 import { getAdminUsers, updateUserStatus } from '../../api/admin';
 
 const AdminUsers = () => {
@@ -9,6 +10,8 @@ const AdminUsers = () => {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const { toasts, showToast, dismissToast } = useAdminToast();
+  const { dialog, confirmDialog, closeDialog } = useAdminDialog();
 
   useEffect(() => {
     fetchUsers();
@@ -21,6 +24,11 @@ const AdminUsers = () => {
       setUsers(data.result || []);
     } catch (error) {
       console.error('Lỗi khi lấy danh sách user:', error);
+      showToast({
+        tone: 'error',
+        title: 'Không tải được người dùng',
+        message: getAdminErrorMessage(error, 'Danh sách người dùng chưa được tải. Vui lòng thử lại.'),
+      });
     } finally {
       setLoading(false);
     }
@@ -29,14 +37,25 @@ const AdminUsers = () => {
   const handleToggleStatus = async (userId, currentStatus) => {
     const user = users.find(u => u.id === userId);
     const isAdmin = user?.roles?.some(r => r.toUpperCase() === 'ADMIN');
-    
+
     if (isAdmin) {
-      alert('Không được phép khóa tài khoản ADMIN!');
+      showToast({
+        tone: 'warning',
+        title: 'Không thể khóa ADMIN',
+        message: 'Tài khoản có vai trò ADMIN được bảo vệ để tránh mất quyền quản trị hệ thống.',
+      });
       return;
     }
 
     const newStatus = (currentStatus === 'INACTIVE' || currentStatus === 'inactive') ? 'ACTIVE' : 'INACTIVE';
-    if (!window.confirm(`Bạn có chắc muốn ${newStatus === 'INACTIVE' ? 'khóa' : 'mở khóa'} tài khoản này?`)) return;
+    const accepted = await confirmDialog({
+      tone: newStatus === 'INACTIVE' ? 'error' : 'success',
+      title: newStatus === 'INACTIVE' ? 'Khóa tài khoản?' : 'Mở khóa tài khoản?',
+      message: `Bạn có chắc muốn ${newStatus === 'INACTIVE' ? 'khóa' : 'mở khóa'} tài khoản này?`,
+      confirmLabel: newStatus === 'INACTIVE' ? 'Khóa tài khoản' : 'Mở khóa',
+      cancelLabel: 'Hủy',
+    });
+    if (!accepted) return;
 
     try {
       await updateUserStatus(userId, newStatus);
@@ -45,10 +64,18 @@ const AdminUsers = () => {
       if (selectedUser && selectedUser.id === userId) {
         setSelectedUser({ ...selectedUser, status: newStatus });
       }
-      alert('Cập nhật trạng thái thành công!');
+      showToast({
+        tone: 'success',
+        title: 'Đã cập nhật trạng thái',
+        message: newStatus === 'INACTIVE' ? 'Tài khoản đã được khóa thành công.' : 'Tài khoản đã được mở khóa thành công.',
+      });
     } catch (error) {
       console.error('Lỗi khi cập nhật trạng thái:', error);
-      alert('Cập nhật trạng thái thất bại.');
+      showToast({
+        tone: 'error',
+        title: 'Cập nhật thất bại',
+        message: getAdminErrorMessage(error, 'Không thể cập nhật trạng thái tài khoản.'),
+      });
     }
   };
 
@@ -58,14 +85,14 @@ const AdminUsers = () => {
   };
 
   const filteredUsers = users.filter(u => {
-    const matchesSearch = 
+    const matchesSearch =
       u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.phoneNumber && u.phoneNumber.includes(searchTerm)) ||
       u.userCode.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = 
-      filterStatus === '' || 
+
+    const matchesStatus =
+      filterStatus === '' ||
       u.status.toUpperCase() === filterStatus.toUpperCase();
 
     return matchesSearch && matchesStatus;
@@ -73,29 +100,32 @@ const AdminUsers = () => {
 
   return (
     <AdminLayout title="Quản lý người dùng">
+      <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
+      <AdminDialog dialog={dialog} onResolve={closeDialog} />
+
       <div className="metrics">
         <div className="metric-card">
           <div className="metric-label">Tổng user đang quản lý</div>
           <div className="metric-value">{users.length}</div>
-          <div className="metric-change metric-up">{users.filter(u=>u.status==='ACTIVE').length} đang hoạt động</div>
+          <div className="metric-change metric-up">{users.filter(u => u.status === 'ACTIVE').length} đang hoạt động</div>
         </div>
         <div className="metric-card">
           <div className="metric-label">Tài khoản bị khóa</div>
-          <div className="metric-value">{users.filter(u=>u.status==='INACTIVE').length}</div>
+          <div className="metric-value">{users.filter(u => u.status === 'INACTIVE').length}</div>
           <div className="metric-change metric-down">Cần theo dõi lại lý do vi phạm</div>
         </div>
       </div>
 
       <div className="card">
         <div className="search-bar" style={{ marginBottom: 0 }}>
-          <input 
-            id="userSearch" 
-            type="text" 
-            placeholder="🔍  Tìm theo tên, email, SĐT..." 
+          <input
+            id="userSearch"
+            type="text"
+            placeholder="🔍  Tìm theo tên, email, SĐT..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <select 
+          <select
             id="userStatusFilter"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -137,7 +167,7 @@ const AdminUsers = () => {
                     <div className="d-flex gap-6">
                       <button className="btn btn-sm" onClick={() => handleViewUser(u)}>Xem</button>
                       {!u.roles?.some(r => r.toUpperCase() === 'ADMIN') && (
-                        <button 
+                        <button
                           className={`btn btn-sm ${u.status === 'INACTIVE' || u.status === 'inactive' ? 'btn-success' : 'btn-danger'}`}
                           onClick={() => handleToggleStatus(u.id, u.status)}
                         >
@@ -207,8 +237,8 @@ const AdminUsers = () => {
             <div className="modal-footer" style={{ padding: '16px 20px', background: 'var(--bg-secondary)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button className="btn" onClick={() => setShowModal(false)} style={{ padding: '8px 16px' }}>Đóng</button>
               {!selectedUser.roles?.some(r => r.toUpperCase() === 'ADMIN') && (
-                <button 
-                  className={`btn ${selectedUser.status === 'INACTIVE' ? 'btn-success' : 'btn-danger'}`} 
+                <button
+                  className={`btn ${selectedUser.status === 'INACTIVE' ? 'btn-success' : 'btn-danger'}`}
                   style={{ padding: '8px 16px' }}
                   onClick={() => handleToggleStatus(selectedUser.id, selectedUser.status)}
                 >

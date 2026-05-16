@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AdminLayout from '../../components/AdminLayout';
+import { AdminDialog, AdminToastStack, getAdminErrorMessage, useAdminDialog, useAdminToast } from '../../components/admin/AdminFeedback';
 import { createCategory, deleteCategory, getCategories, updateCategory } from '../../api/admin';
 
 const emptyForm = {
@@ -28,6 +29,8 @@ const AdminServices = () => {
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
     const [formData, setFormData] = useState(emptyForm);
+    const { toasts, showToast, dismissToast } = useAdminToast();
+    const { dialog, confirmDialog, closeDialog } = useAdminDialog();
 
     const flatCategories = useMemo(() => flattenCategories(categories), [categories]);
     const totalCategories = useMemo(() => countCategories(categories), [categories]);
@@ -63,7 +66,11 @@ const AdminServices = () => {
             setCategories(data.result || []);
         } catch (error) {
             console.error('Lỗi khi lấy danh sách danh mục:', error);
-            window.alert(error.response?.data?.message || 'Không thể tải danh mục.');
+            showToast({
+                tone: 'error',
+                title: 'Không tải được danh mục',
+                message: getAdminErrorMessage(error, 'Không thể tải danh mục dịch vụ.'),
+            });
         } finally {
             setLoading(false);
         }
@@ -96,30 +103,56 @@ const AdminServices = () => {
             const payload = toPayload(formData);
             if (editingCategory) {
                 await updateCategory(editingCategory.id, payload);
-                window.alert('Cập nhật danh mục thành công!');
+                showToast({
+                    tone: 'success',
+                    title: 'Đã cập nhật danh mục',
+                    message: `Danh mục "${payload.name}" đã được lưu thay đổi.`,
+                });
             } else {
                 await createCategory(payload);
-                window.alert('Tạo danh mục mới thành công!');
+                showToast({
+                    tone: 'success',
+                    title: 'Đã tạo danh mục mới',
+                    message: `Danh mục "${payload.name}" đã sẵn sàng để sử dụng.`,
+                });
             }
             setShowModal(false);
             fetchData();
         } catch (error) {
             console.error('Lỗi khi lưu danh mục:', error);
-            window.alert(error.response?.data?.message || 'Thao tác thất bại.');
+            showToast({
+                tone: 'error',
+                title: 'Lưu danh mục thất bại',
+                message: getAdminErrorMessage(error, 'Không thể lưu danh mục lúc này.'),
+            });
         }
     };
 
     const handleDelete = async (category) => {
-        const accepted = window.confirm(`Bạn có chắc muốn ẩn danh mục "${category.name}"? Các danh mục con cũng sẽ bị ẩn.`);
+        const accepted = await confirmDialog({
+            tone: 'warning',
+            title: 'Ẩn danh mục dịch vụ?',
+            message: `Bạn có chắc muốn ẩn danh mục "${category.name}"? Các danh mục con cũng sẽ bị ẩn.`,
+            confirmLabel: 'Ẩn danh mục',
+            cancelLabel: 'Hủy',
+        });
         if (!accepted) return;
 
         try {
             await deleteCategory(category.id);
-            window.alert('Đã ẩn danh mục thành công!');
+            showToast({
+                tone: 'success',
+                title: 'Đã ẩn danh mục',
+                message: `Danh mục "${category.name}" và các danh mục con đã được ẩn mềm.`,
+            });
             fetchData();
         } catch (error) {
             console.error('Lỗi khi ẩn danh mục:', error);
-            window.alert(error.response?.data?.message || 'Thao tác thất bại.');
+            showToast({
+                tone: 'error',
+                title: 'Ẩn danh mục thất bại',
+                message: getAdminErrorMessage(error, 'Không thể ẩn danh mục đã chọn.'),
+            });
         }
     };
 
@@ -131,10 +164,19 @@ const AdminServices = () => {
                 description: category.description || null,
                 active: true,
             });
+            showToast({
+                tone: 'success',
+                title: 'Đã hiện lại danh mục',
+                message: `Danh mục "${category.name}" đã được kích hoạt trở lại.`,
+            });
             fetchData();
         } catch (error) {
             console.error('Lỗi khi hiện danh mục:', error);
-            window.alert(error.response?.data?.message || 'Không thể hiện lại danh mục.');
+            showToast({
+                tone: 'error',
+                title: 'Hiện lại danh mục thất bại',
+                message: getAdminErrorMessage(error, 'Không thể hiện lại danh mục.'),
+            });
         }
     };
 
@@ -146,6 +188,9 @@ const AdminServices = () => {
 
     return (
         <AdminLayout title="Quản lý danh mục">
+            <AdminToastStack toasts={toasts} onDismiss={dismissToast} />
+            <AdminDialog dialog={dialog} onResolve={closeDialog} />
+
             <div className="metrics metrics-3">
                 <div className="metric-card">
                     <div className="metric-label">Tổng số danh mục</div>

@@ -36,12 +36,14 @@ export const PartnerErrorState = ({ message = 'Không thể tải dữ liệu.',
 
 export const PartnerStatusBadge = ({ status }) => {
     const normalized = String(status || '').toUpperCase();
-    const cls = normalized.includes('CANCEL')
-        ? 'bg-red-50 text-red-600 border-red-100'
-        : normalized.includes('COMPLETE') || normalized.includes('ACTIVE') || normalized.includes('CONFIRMED')
-            ? 'bg-green-50 text-green-600 border-green-100'
-            : normalized.includes('PROGRESS')
-                ? 'bg-blue-50 text-blue-600 border-blue-100'
-                : 'bg-orange-50 text-orange-600 border-orange-100';
+    const cls = normalized.includes('INACTIVE')
+        ? 'bg-gray-50 text-gray-500 border-gray-100'
+        : normalized.includes('CANCEL')
+            ? 'bg-red-50 text-red-600 border-red-100'
+            : normalized.includes('COMPLETE') || normalized === 'ACTIVE' || normalized.includes('CONFIRMED')
+                ? 'bg-green-50 text-green-600 border-green-100'
+                : normalized.includes('PROGRESS')
+                    ? 'bg-blue-50 text-blue-600 border-blue-100'
+                    : 'bg-orange-50 text-orange-600 border-orange-100';
     return <span className={`px-3 py-1 rounded-xl border text-[10px] font-black uppercase tracking-widest ${cls}`}>{status || 'N/A'}</span>;
 };

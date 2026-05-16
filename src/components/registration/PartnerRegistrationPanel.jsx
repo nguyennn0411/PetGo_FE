@@ -48,8 +48,10 @@ const buildInitialForm = (account, registration) => ({
     representativeEmail: registration?.representativeEmail || valueOrEmpty(getAccountEmail(account), 'Chưa có email'),
     description: registration?.description || '',
     serviceCategoryIds: (registration?.serviceCategoryIds || []).map(Number),
-    // Ảnh địa điểm là dữ liệu tạm thời: không load lại từ draft/server và không lưu khi lưu nháp.
-    locationImageUrls: [],
+    // Draft vẫn không lưu ảnh, nhưng hồ sơ đã gửi/review cần load lại ảnh để user bổ sung hoặc nộp lại không phải upload từ đầu.
+    locationImageUrls: registration?.status && registration.status !== REGISTRATION_STATUS.DRAFT
+        ? normalizeImageList(registration?.locationImageUrls)
+        : [],
 });
 
 const valueOrEmpty = (value, placeholder) => (value && value !== placeholder ? value : '');
@@ -234,7 +236,7 @@ const PartnerRegistrationPanel = ({ account }) => {
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const [imageUploads, setImageUploads] = useState({});
-    const [centerNotice, setCenterNotice] = useState('');
+    const [centerNotice, setCenterNotice] = useState(null);
     const noticeTimerRef = useRef(null);
 
     const status = registration?.status || REGISTRATION_STATUS.DRAFT;
@@ -248,15 +250,18 @@ const PartnerRegistrationPanel = ({ account }) => {
     const categoryOptions = useMemo(() => flattenCategoryOptions(categories), [categories]);
     const isUploadingImages = Object.values(imageUploads).some(Boolean);
 
-    const showCenterNotice = (message = 'Vui lòng điền đầy đủ thông tin') => {
+    const showCenterNotice = (notice = 'Vui lòng điền đầy đủ thông tin') => {
         if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-        setCenterNotice(message);
-        noticeTimerRef.current = setTimeout(() => setCenterNotice(''), 5000);
+        const nextNotice = typeof notice === 'string'
+            ? { type: 'warning', title: 'Cần kiểm tra thông tin', message: notice }
+            : { type: 'info', title: 'Thông báo', ...notice };
+        setCenterNotice(nextNotice);
+        noticeTimerRef.current = setTimeout(() => setCenterNotice(null), 5000);
     };
 
     const closeCenterNotice = () => {
         if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
-        setCenterNotice('');
+        setCenterNotice(null);
     };
 
     useEffect(() => () => {
@@ -282,7 +287,7 @@ const PartnerRegistrationPanel = ({ account }) => {
             setAdditionalInformation('');
             setCategories(filterData?.serviceCategories || []);
         } catch (err) {
-            setError(err.response?.data?.message || 'Không thể tải hồ sơ đăng ký partner.');
+            setError(err.response?.data?.message || 'Không thể tải hồ sơ đăng ký.');
         } finally {
             setLoading(false);
         }
@@ -435,9 +440,13 @@ const PartnerRegistrationPanel = ({ account }) => {
                 ? await updatePartnerRegistrationDraft(payload)
                 : await createPartnerRegistrationDraft(payload);
             setRegistration(saved);
-            window.alert('Đã lưu nháp hồ sơ partner.');
+            showCenterNotice({
+                type: 'success',
+                title: 'Đã lưu nháp',
+                message: 'Hồ sơ của bạn đã được lưu nháp. Bạn có thể tiếp tục chỉnh sửa trước khi gửi xét duyệt.',
+            });
         } catch (err) {
-            setError(err.response?.data?.message || 'Lưu nháp hồ sơ partner thất bại.');
+            setError(err.response?.data?.message || 'Lưu nháp hồ sơ thất bại.');
         } finally {
             setSaving(false);
         }
@@ -462,9 +471,13 @@ const PartnerRegistrationPanel = ({ account }) => {
             setError('');
             const submitted = await submitPartnerRegistration(toPayload(form));
             setRegistration(submitted);
-            window.alert('Đã gửi hồ sơ partner chờ admin duyệt.');
+            showCenterNotice({
+                type: 'success',
+                title: 'Đã gửi hồ sơ',
+                message: 'Hồ sơ của bạn đang được xét duyệt.',
+            });
         } catch (err) {
-            setError(err.response?.data?.message || 'Gửi hồ sơ partner thất bại.');
+            setError(err.response?.data?.message || 'Gửi hồ sơ thất bại.');
         } finally {
             setSubmitting(false);
         }
@@ -496,7 +509,11 @@ const PartnerRegistrationPanel = ({ account }) => {
             });
             setRegistration(submitted);
             setAdditionalInformation('');
-            window.alert('Đã gửi thông tin bổ sung.');
+            showCenterNotice({
+                type: 'success',
+                title: 'Đã gửi bổ sung',
+                message: 'Thông tin bổ sung đã được gửi. Hồ sơ của bạn đang được xét duyệt lại.',
+            });
         } catch (err) {
             setError(err.response?.data?.message || 'Gửi thông tin bổ sung thất bại.');
         } finally {
@@ -508,30 +525,45 @@ const PartnerRegistrationPanel = ({ account }) => {
         return <RegistrationLoadingState />;
     }
 
+    const noticeOverlay = centerNotice && <CenterNotice notice={centerNotice} onClose={closeCenterNotice} />;
+
     if (error && !canEdit && status !== REGISTRATION_STATUS.NEEDS_MORE_INFO) {
         return <RegistrationErrorState message={error} onRetry={loadRegistration} />;
     }
 
     if (status === REGISTRATION_STATUS.AWAITING_APPROVAL) {
-        return <AwaitingApprovalView registration={registration} onRefresh={loadRegistration} />;
+        return (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                {noticeOverlay}
+                <RegistrationProgressSteps status={status} registration={registration} />
+                <AwaitingApprovalView registration={registration} onRefresh={loadRegistration} />
+            </div>
+        );
     }
 
     if (status === REGISTRATION_STATUS.APPROVED) {
-        return <RegistrationResultView type="approved" registration={registration} onRefresh={loadRegistration} />;
+        return (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                {noticeOverlay}
+                <RegistrationProgressSteps status={status} registration={registration} />
+                <RegistrationResultView type="approved" registration={registration} onRefresh={loadRegistration} />
+            </div>
+        );
     }
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-            {centerNotice && <CenterNotice message={centerNotice} onClose={closeCenterNotice} />}
+            {noticeOverlay}
+            <RegistrationProgressSteps status={status} registration={registration} />
             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-white space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="space-y-2">
-                        <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
-                            <Store className="w-7 h-7" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-black">Partner registration</h2>
-                            <p className="text-gray-500 font-medium">Tạo hồ sơ shop/dịch vụ để admin xét duyệt đối tác PetGo.</p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+                                <Store className="w-6 h-6" />
+                            </div>
+
+                            <h2 className="text-2xl font-black">Mẫu đăng ký cho shop</h2>
                         </div>
                     </div>
                     <span className={`px-4 py-2 rounded-2xl border text-xs font-black uppercase tracking-widest ${statusBadgeClass}`}>
@@ -546,8 +578,8 @@ const PartnerRegistrationPanel = ({ account }) => {
                 {status === REGISTRATION_STATUS.REJECTED && (
                     <InlineAlert
                         type="error"
-                        title="Hồ sơ trước đó đã bị từ chối"
-                        message={registration?.rejectionReason || registration?.adminMessage || 'Bạn có thể chỉnh sửa và nộp lại hồ sơ partner.'}
+                        title="Hồ sơ trước đó đã bị từ chối với lý do:"
+                        message={registration?.rejectionReason || registration?.adminMessage || 'Bạn có thể chỉnh sửa và gửi lại hồ sơ.'}
                     />
                 )}
 
@@ -650,9 +682,6 @@ const PartnerRegistrationForm = ({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                         <SectionTitle icon={<Store />} title="Nhóm dịch vụ shop cung cấp" required />
-                        <p className="text-sm text-gray-500 font-medium">
-                            Tick nhóm chính để chọn/bỏ toàn bộ nhóm con. Khi tất cả nhóm con được chọn, nhóm chính sẽ tự được tick.
-                        </p>
                     </div>
                     {totalCategoryCount > 0 && (
                         <span className="w-fit rounded-full bg-gray-100 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest text-gray-500">
@@ -683,10 +712,10 @@ const PartnerRegistrationForm = ({
             <section className="space-y-4">
                 <SectionTitle icon={<ImagePlus />} title="Ảnh về địa điểm" required />
                 <div className="rounded-2xl border border-yellow-100 bg-yellow-50 px-4 py-3 text-sm font-bold text-yellow-700">
-                    Ảnh chỉ được dùng khi bấm “Gửi xét duyệt”. Ảnh đã upload sẽ không được lưu lại khi tải lại trang hoặc khi bấm “Lưu nháp”.
+                    Ảnh mới upload chỉ được lưu vào hồ sơ khi bấm “Gửi xét duyệt/Gửi thông tin bổ sung”.
                 </div>
                 <p className="text-sm text-gray-500 font-medium">
-                    Upload tối thiểu {MIN_LOCATION_IMAGE_COUNT}, tối đa {MAX_LOCATION_IMAGE_COUNT} ảnh. Kéo thả vào ô bên dưới hoặc bấm để chọn file.
+                    Upload từ {MIN_LOCATION_IMAGE_COUNT} - {MAX_LOCATION_IMAGE_COUNT} ảnh.
                 </p>
                 {fieldErrors.locationImageUrls && <p className="text-xs text-red-500 font-bold">{fieldErrors.locationImageUrls}</p>}
                 <LocationImageUploader
@@ -965,6 +994,117 @@ const SelectedCategorySummary = ({ names }) => {
     );
 };
 
+const RegistrationProgressSteps = ({ status, registration }) => {
+    const hasAdditionalSubmission = Boolean(String(registration?.additionalInformation || '').trim());
+    const hasAdditionalCycle = hasAdditionalSubmission
+        || status === REGISTRATION_STATUS.NEEDS_MORE_INFO;
+
+    const steps = [
+        {
+            key: 'create',
+            number: '1',
+            label: 'Tạo hồ sơ',
+            description: status === REGISTRATION_STATUS.DRAFT
+                ? 'Điền thông tin còn thiếu hoặc chỉnh sửa thông tin sẵn có.'
+                : 'Thông tin hồ sơ đã được ghi nhận.',
+            active: status === REGISTRATION_STATUS.DRAFT,
+            done: status !== REGISTRATION_STATUS.DRAFT,
+        },
+        {
+            key: 'awaiting',
+            number: '2',
+            label: 'Chờ xét duyệt',
+            description: hasAdditionalSubmission
+                ? 'Đang xem lại thông tin bổ sung.'
+                : 'Hồ sơ của bạn đang được xét duyệt.',
+            active: status === REGISTRATION_STATUS.AWAITING_APPROVAL,
+            done: [REGISTRATION_STATUS.NEEDS_MORE_INFO, REGISTRATION_STATUS.APPROVED, REGISTRATION_STATUS.REJECTED].includes(status),
+        },
+        {
+            key: 'additional',
+            number: '2.1',
+            label: 'Bổ sung thông tin',
+            description: status === REGISTRATION_STATUS.NEEDS_MORE_INFO
+                ? 'Bạn cần bổ sung theo yêu cầu.'
+                : hasAdditionalSubmission
+                    ? 'Thông tin bổ sung đã được gửi lại.'
+                    : 'Chỉ dùng khi admin yêu cầu thêm thông tin.',
+            active: status === REGISTRATION_STATUS.NEEDS_MORE_INFO,
+            done: hasAdditionalSubmission && status !== REGISTRATION_STATUS.NEEDS_MORE_INFO,
+            muted: !hasAdditionalCycle,
+        },
+        {
+            key: 'result',
+            number: '3',
+            label: status === REGISTRATION_STATUS.REJECTED ? 'Đã từ chối' : status === REGISTRATION_STATUS.APPROVED ? 'Đã duyệt' : 'Đã xét duyệt',
+            description: status === REGISTRATION_STATUS.REJECTED
+                ? 'Bạn có thể chỉnh sửa và gửi lại hồ sơ.'
+                : status === REGISTRATION_STATUS.APPROVED
+                    ? 'Hồ sơ của bạn đã được duyệt.'
+                    : 'Kết quả xét duyệt sẽ hiển thị tại đây.',
+            active: [REGISTRATION_STATUS.APPROVED, REGISTRATION_STATUS.REJECTED].includes(status),
+            done: status === REGISTRATION_STATUS.APPROVED,
+            danger: status === REGISTRATION_STATUS.REJECTED,
+        },
+    ].filter((step) => step.key !== 'additional' || hasAdditionalCycle);
+
+    return (
+        <div className="flex flex-col gap-3 md:flex-row md:items-stretch">
+            {steps.map((step, index) => {
+                const tone = step.danger ? 'danger' : step.active ? 'active' : step.done ? 'done' : step.muted ? 'muted' : 'idle';
+                const toneClass = {
+                    active: 'border-orange-200 bg-orange-50 text-orange-700',
+                    done: 'border-green-100 bg-green-50 text-green-700',
+                    danger: 'border-red-100 bg-red-50 text-red-700',
+                    muted: 'border-gray-100 bg-gray-50 text-gray-400',
+                    idle: 'border-gray-100 bg-white text-gray-500',
+                }[tone];
+                const bubbleClass = {
+                    active: 'bg-orange-500 text-white',
+                    done: 'bg-green-500 text-white',
+                    danger: 'bg-red-500 text-white',
+                    muted: 'bg-gray-200 text-gray-400',
+                    idle: 'bg-gray-100 text-gray-400',
+                }[tone];
+
+                return (
+                    <React.Fragment key={step.key}>
+                        <div className={`min-w-0 flex-1 rounded-[1.5rem] border p-4 transition-all ${toneClass}`}>
+                            <div className="flex items-center gap-3">
+                                <span className={`flex h-9 min-w-9 shrink-0 items-center justify-center rounded-xl px-2 text-sm font-black ${bubbleClass}`}>
+                                    {step.done && !step.active && !step.danger ? <CheckCircle2 className="w-4 h-4" /> : step.number || index + 1}
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="font-black leading-snug">{step.label}</p>
+                                    <p className="mt-1 text-xs font-semibold leading-relaxed opacity-80">{step.description}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {index < steps.length - 1 && (
+                            <div className="flex items-center justify-center text-gray-300 md:px-2" aria-hidden="true">
+                                <svg
+                                    className="h-10 w-14 rotate-90 md:h-12 md:w-16 md:rotate-0"
+                                    viewBox="0 0 64 48"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                >
+                                    <path
+                                        d="M18 8L44 24L18 40"
+                                        stroke="currentColor"
+                                        strokeWidth="8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </svg>
+                            </div>
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </div>
+    );
+};
+
 const AdditionalInformationView = ({ registration, value, onChange, error }) => (
     <div className="p-5 rounded-[2rem] bg-blue-50 border border-blue-100 space-y-4">
         <div className="flex items-start gap-3">
@@ -976,6 +1116,12 @@ const AdditionalInformationView = ({ registration, value, onChange, error }) => 
                 <p className="text-blue-700 font-semibold mt-1">{registration?.adminMessage || 'Vui lòng bổ sung thông tin theo yêu cầu để tiếp tục xét duyệt.'}</p>
             </div>
         </div>
+        {registration?.additionalInformation && (
+            <div className="rounded-2xl border border-blue-100 bg-white/80 px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Thông tin bổ sung đã gửi trước đó</p>
+                <p className="mt-2 text-sm font-semibold text-blue-900 whitespace-pre-line">{registration.additionalInformation}</p>
+            </div>
+        )}
         <div>
             <span className="text-[10px] font-black text-blue-700 uppercase tracking-widest ml-1">Nội dung bổ sung gửi admin<RequiredMark /></span>
             <textarea
@@ -996,9 +1142,15 @@ const AwaitingApprovalView = ({ registration, onRefresh }) => (
             <Clock className="w-10 h-10" />
         </div>
         <div>
-            <h2 className="text-3xl font-black mb-2">Awaiting approval</h2>
-            <p className="text-gray-500 font-medium max-w-md mx-auto">Hồ sơ partner của {registration?.businessName || 'bạn'} đã được gửi và đang chờ admin xét duyệt.</p>
+            <h2 className="text-3xl font-black mb-2">Đang xét duyệt</h2>
+            <p className="text-gray-500 font-medium max-w-md mx-auto">Hồ sơ của bạn đang được xét duyệt.</p>
         </div>
+        {registration?.additionalInformation && (
+            <div className="max-w-xl mx-auto rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-left">
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Thông tin bổ sung đã gửi</p>
+                <p className="mt-2 text-sm font-semibold text-blue-900 whitespace-pre-line">{registration.additionalInformation}</p>
+            </div>
+        )}
         <button onClick={onRefresh} className="px-5 py-3 rounded-2xl bg-orange-50 text-orange-600 font-black hover:bg-orange-500 hover:text-white transition-all inline-flex items-center gap-2">
             <RefreshCw className="w-4 h-4" />
             Cập nhật trạng thái
@@ -1014,10 +1166,10 @@ const RegistrationResultView = ({ type, registration, onRefresh }) => {
                 {approved ? <CheckCircle2 className="w-10 h-10" /> : <XCircle className="w-10 h-10" />}
             </div>
             <div>
-                <h2 className="text-3xl font-black mb-2">{approved ? 'Approved' : 'Request Rejected'}</h2>
+                <h2 className="text-3xl font-black mb-2">{approved ? 'Đã duyệt' : 'Hồ sơ bị từ chối'}</h2>
                 <p className="text-gray-500 font-medium max-w-md mx-auto">
                     {approved
-                        ? 'Hồ sơ partner đã được duyệt. Tài khoản của bạn đã được cấp quyền provider/partner theo cấu hình hiện tại.'
+                        ? 'Hồ sơ của bạn đã được duyệt. Bạn có thể vào Partner Dashboard để vận hành shop.'
                         : registration?.rejectionReason || registration?.adminMessage || 'Hồ sơ của bạn đã bị từ chối.'}
                 </p>
             </div>
@@ -1071,24 +1223,78 @@ const InlineAlert = ({ type = 'info', title, message, onRetry }) => {
     );
 };
 
-const CenterNotice = ({ message, onClose }) => (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-gray-950/35 px-4 backdrop-blur-sm" onClick={onClose}>
-        <div className="relative animate-in fade-in zoom-in-95 duration-200 rounded-[2rem] border border-red-100 bg-white px-8 py-5 text-center shadow-2xl shadow-gray-900/20" onClick={(event) => event.stopPropagation()}>
-            <button
-                type="button"
-                onClick={onClose}
-                className="absolute right-3 top-3 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-500"
-                aria-label="Đóng thông báo"
-            >
-                <XCircle className="w-5 h-5" />
-            </button>
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500">
-                <AlertTriangle className="w-6 h-6" />
+const CenterNotice = ({ notice, onClose }) => {
+    const type = notice?.type || 'info';
+    const tone = {
+        success: {
+            icon: <CheckCircle2 className="w-7 h-7" />,
+            iconClass: 'bg-green-50 text-green-600',
+            badgeClass: 'bg-green-50 text-green-700 border-green-100',
+            buttonClass: 'bg-green-600 hover:bg-green-700 shadow-green-100',
+            label: 'Thành công',
+        },
+        warning: {
+            icon: <AlertTriangle className="w-7 h-7" />,
+            iconClass: 'bg-orange-50 text-orange-500',
+            badgeClass: 'bg-orange-50 text-orange-700 border-orange-100',
+            buttonClass: 'bg-orange-500 hover:bg-orange-600 shadow-orange-100',
+            label: 'Cần kiểm tra',
+        },
+        error: {
+            icon: <XCircle className="w-7 h-7" />,
+            iconClass: 'bg-red-50 text-red-600',
+            badgeClass: 'bg-red-50 text-red-700 border-red-100',
+            buttonClass: 'bg-red-600 hover:bg-red-700 shadow-red-100',
+            label: 'Có lỗi',
+        },
+        info: {
+            icon: <AlertTriangle className="w-7 h-7" />,
+            iconClass: 'bg-blue-50 text-blue-600',
+            badgeClass: 'bg-blue-50 text-blue-700 border-blue-100',
+            buttonClass: 'bg-gray-900 hover:bg-orange-500 shadow-gray-200',
+            label: 'Thông báo',
+        },
+    }[type];
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-gray-950/35 px-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative w-full max-w-md animate-in fade-in zoom-in-95 duration-200 overflow-hidden rounded-[2.5rem] border border-white bg-white p-6 text-left shadow-2xl shadow-gray-900/20" onClick={(event) => event.stopPropagation()}>
+                <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[3rem] bg-orange-50/70" />
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="absolute right-4 top-4 z-10 rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Đóng thông báo"
+                >
+                    <XCircle className="w-5 h-5" />
+                </button>
+
+                <div className="relative space-y-5">
+                    <div className="flex items-start gap-4 pr-8">
+                        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${tone.iconClass}`}>
+                            {tone.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${tone.badgeClass}`}>
+                                {tone.label}
+                            </span>
+                            <h3 className="mt-3 text-xl font-black leading-tight text-gray-900">{notice?.title || 'Thông báo'}</h3>
+                            <p className="mt-2 text-sm font-semibold leading-relaxed text-gray-500">{notice?.message}</p>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className={`w-full rounded-2xl px-5 py-3 font-black text-white shadow-xl transition-all active:scale-[0.98] ${tone.buttonClass}`}
+                    >
+                        Đã hiểu
+                    </button>
+                </div>
             </div>
-            <p className="text-base font-black text-gray-900">{message}</p>
         </div>
-    </div>
-);
+    );
+};
 
 const RequiredMark = () => <span className="ml-0.5 text-red-500">*</span>;
 

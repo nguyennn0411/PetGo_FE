@@ -6,13 +6,13 @@ import {
     CalendarDays,
     ChevronLeft,
     CreditCard,
+    Gift,
     HelpCircle,
     Home,
     LogOut,
     Menu,
     MessageSquare,
     Scissors,
-    Settings,
     ShoppingBag,
     Star,
     Store,
@@ -33,6 +33,7 @@ const navGroups = [
         items: [
             { label: 'Hồ sơ shop', path: '/partner/profile', icon: Store },
             { label: 'Dịch vụ', path: '/partner/services', icon: Scissors },
+            { label: 'Khuyến mãi', path: '/partner/promotions', icon: Gift },
             { label: 'Lịch làm việc', path: '/partner/schedule', icon: CalendarDays },
         ],
     },
@@ -49,7 +50,6 @@ const navGroups = [
         items: [
             { label: 'Doanh thu', path: '/partner/revenue', icon: CreditCard },
             { label: 'Thông báo', path: '/partner/notifications', icon: Bell },
-            { label: 'Cài đặt', path: '/partner/settings', icon: Settings },
             { label: 'Hỗ trợ', path: '/partner/support', icon: HelpCircle },
         ],
     },
@@ -69,7 +69,7 @@ const PartnerLayout = ({ children, title = 'Partner Dashboard', subtitle = 'Qu�
     }
 
     if (!canAccessPartnerArea(account)) {
-        return <Navigate to="/profile?tab=partner-registration" replace />;
+        return <Navigate to="/partner-registration/shop" replace />;
     }
 
     const handleLogout = () => {
@@ -135,7 +135,7 @@ const PartnerLayout = ({ children, title = 'Partner Dashboard', subtitle = 'Qu�
                             <Link to="/" title="Về trang thương mại" className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-50 text-gray-500 font-black text-xs uppercase tracking-widest hover:bg-orange-50 hover:text-orange-600">
                                 <Home className="w-4 h-4" /> Trang thương mại
                             </Link>
-                            <button className="relative p-3 rounded-2xl bg-gray-50 text-gray-500 hover:text-orange-500 hover:bg-orange-50">
+                            <button onClick={() => navigate('/partner/notifications')} className="relative p-3 rounded-2xl bg-gray-50 text-gray-500 hover:text-orange-500 hover:bg-orange-50" title="Thông báo">
                                 <MessageSquare className="w-5 h-5" />
                             </button>
                             <div className="text-right hidden md:block">

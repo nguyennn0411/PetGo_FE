@@ -55,3 +55,48 @@ export const deleteCategory = async (id) => {
   const response = await api.delete(`/admin/categories/${id}`);
   return response.data;
 };
+
+export const getPartnerServiceRequests = async (params = {}) => {
+  const response = await api.get('/admin/partner-service-requests', { params });
+  return response.data?.result || response.data;
+};
+
+export const getPartnerServiceRequestDetail = async (id) => {
+  const response = await api.get(`/admin/partner-service-requests/${id}`);
+  return response.data?.result || response.data;
+};
+
+export const approvePartnerServiceRequest = async (id, payload = {}) => {
+  const response = await api.post(`/admin/partner-service-requests/${id}/approve`, payload);
+  return response.data?.result || response.data;
+};
+
+export const rejectPartnerServiceRequest = async (id, payload = {}) => {
+  const response = await api.post(`/admin/partner-service-requests/${id}/reject`, payload);
+  return response.data?.result || response.data;
+};
+
+export const getAdminPromotions = async (params = {}) => {
+  const response = await api.get('/admin/promotions', { params });
+  return response.data?.result || response.data;
+};
+
+export const getAdminPromotionOptions = async () => {
+  const response = await api.get('/admin/promotions/options');
+  return response.data?.result || response.data;
+};
+
+export const createAdminPromotion = async (payload) => {
+  const response = await api.post('/admin/promotions', payload);
+  return response.data?.result || response.data;
+};
+
+export const updateAdminPromotion = async (id, payload) => {
+  const response = await api.put(`/admin/promotions/${id}`, payload);
+  return response.data?.result || response.data;
+};
+
+export const updateAdminPromotionStatus = async (id, active) => {
+  const response = await api.patch(`/admin/promotions/${id}/status`, { active });
+  return response.data?.result || response.data;
+};
