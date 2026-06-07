@@ -47,7 +47,9 @@ import CheckoutPage from './pages/shop/CheckoutPage';
 import ShopOrdersPage from './pages/shop/ShopOrdersPage';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminShopOrders from './pages/admin/AdminShopOrders';
+
 import AiChatWidget from './components/AiChatWidget';
+import AiGroomingSuggestionPage from './pages/AiGroomingSuggestionPage';
 
 export default function App() {
   return (
@@ -110,6 +112,7 @@ export default function App() {
         <Route path='/home' element={<Navigate to='/' replace />} />
         <Route path='/services' element={<Navigate to='/search' replace />} />
         <Route path='*' element={<Navigate to='/' replace />} />
+        <Route path="/ai-grooming" element={<AiGroomingSuggestionPage />} />
       </Routes>
         <AiChatWidget />
     </BrowserRouter>
